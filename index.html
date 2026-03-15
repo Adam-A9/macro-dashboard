@@ -131,53 +131,6 @@
     gap: 12px;
   }
 
-  /* TICKER TAPE */
-  .ticker-tape {
-    grid-column: 1 / -1;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    overflow: hidden;
-    height: 36px;
-    display: flex;
-    align-items: center;
-  }
-  .ticker-label {
-    background: var(--accent);
-    color: var(--bg);
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    padding: 0 12px;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .ticker-scroll {
-    display: flex;
-    gap: 0;
-    animation: scroll 40s linear infinite;
-    white-space: nowrap;
-  }
-  @keyframes scroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-  }
-  .ticker-item {
-    padding: 0 24px;
-    font-size: 11px;
-    letter-spacing: 0.05em;
-    border-right: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .ticker-item .t-name { color: var(--muted); }
-  .ticker-item .t-val { color: var(--text); }
-  .ticker-item .t-chg.pos { color: var(--green); }
-  .ticker-item .t-chg.neg { color: var(--red); }
 
   /* KPI CARDS */
   .kpi-card {
@@ -251,14 +204,7 @@
 
   .sparkline-wrap {
     margin-top: 10px;
-    height: 40px;
-  }
-  .spark-range {
-    color: var(--muted2);
-    font-size: 9px;
-    letter-spacing: 0.08em;
-    margin-top: 4px;
-    text-align: right;
+    height: 52px;
   }
 
   /* CHART PANELS */
@@ -378,7 +324,6 @@
     <div class="kpi-change neutral" id="chg-GDP">–</div>
     <div class="kpi-date" id="date-GDP">–</div>
     <div class="sparkline-wrap"><canvas id="spark-GDP"></canvas></div>
-    <div class="spark-range" id="spark-range-GDP">–</div>
   </div>
 
   <div class="kpi-card warn" id="card-Unemployment">
@@ -387,7 +332,6 @@
     <div class="kpi-change neutral" id="chg-Unemployment">–</div>
     <div class="kpi-date" id="date-Unemployment">–</div>
     <div class="sparkline-wrap"><canvas id="spark-Unemployment"></canvas></div>
-    <div class="spark-range" id="spark-range-Unemployment">–</div>
   </div>
 
   <div class="kpi-card" id="card-CPI">
@@ -396,7 +340,6 @@
     <div class="kpi-change neutral" id="chg-CPI">–</div>
     <div class="kpi-date" id="date-CPI">–</div>
     <div class="sparkline-wrap"><canvas id="spark-CPI"></canvas></div>
-    <div class="spark-range" id="spark-range-CPI">–</div>
   </div>
 
   <div class="kpi-card" id="card-PPI">
@@ -405,7 +348,6 @@
     <div class="kpi-change neutral" id="chg-PPI">–</div>
     <div class="kpi-date" id="date-PPI">–</div>
     <div class="sparkline-wrap"><canvas id="spark-PPI"></canvas></div>
-    <div class="spark-range" id="spark-range-PPI">–</div>
   </div>
 
   <div class="kpi-card good" id="card-M2">
@@ -414,7 +356,6 @@
     <div class="kpi-change neutral" id="chg-M2">–</div>
     <div class="kpi-date" id="date-M2">–</div>
     <div class="sparkline-wrap"><canvas id="spark-M2"></canvas></div>
-    <div class="spark-range" id="spark-range-M2">–</div>
   </div>
 
   <div class="kpi-card gold" id="card-10Y_Yield">
@@ -423,7 +364,6 @@
     <div class="kpi-change neutral" id="chg-10Y_Yield">–</div>
     <div class="kpi-date" id="date-10Y_Yield">–</div>
     <div class="sparkline-wrap"><canvas id="spark-10Y_Yield"></canvas></div>
-    <div class="spark-range" id="spark-range-10Y_Yield">–</div>
   </div>
 
   <div class="kpi-card" id="card-Housing_Starts">
@@ -432,7 +372,6 @@
     <div class="kpi-change neutral" id="chg-Housing_Starts">–</div>
     <div class="kpi-date" id="date-Housing_Starts">–</div>
     <div class="sparkline-wrap"><canvas id="spark-Housing_Starts"></canvas></div>
-    <div class="spark-range" id="spark-range-Housing_Starts">–</div>
   </div>
 
   <div class="kpi-card" id="card-Retail_Sales">
@@ -441,7 +380,6 @@
     <div class="kpi-change neutral" id="chg-Retail_Sales">–</div>
     <div class="kpi-date" id="date-Retail_Sales">–</div>
     <div class="sparkline-wrap"><canvas id="spark-Retail_Sales"></canvas></div>
-    <div class="spark-range" id="spark-range-Retail_Sales">–</div>
   </div>
 
   <!-- SECTION LABEL -->
@@ -543,15 +481,6 @@
   <span id="footer-ts">–</span>
 </footer>
 
-<!-- TICKER TAPE (populated by JS) -->
-<div style="position:fixed;bottom:0;left:0;right:0;z-index:50;">
-  <div class="ticker-tape">
-    <div class="ticker-label">LIVE</div>
-    <div style="overflow:hidden;flex:1;">
-      <div class="ticker-scroll" id="tickerScroll"></div>
-    </div>
-  </div>
-</div>
 
 <script>
 // ─── CONFIG ───────────────────────────────────────────────
@@ -722,16 +651,54 @@ function makeSparkline(canvasId, data, color) {
   const ctx = document.getElementById(canvasId)?.getContext('2d');
   if (!ctx) return;
   if (sparklines[canvasId]) sparklines[canvasId].destroy();
+  // Show only first, middle, last date labels
+  const n = data.length;
+  const tickLabels = data.map((d, i) => {
+    if (i === 0 || i === Math.floor(n / 2) || i === n - 1) return d.date.slice(0, 7); // YYYY-MM
+    return '';
+  });
   sparklines[canvasId] = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: data.map((_, i) => i),
+      labels: tickLabels,
       datasets: [{ data: data.map(d => d.value), borderColor: color, borderWidth: 1.5, backgroundColor: 'transparent', fill: false, pointRadius: 0, tension: 0.4 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false, animation: { duration: 600 },
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      scales: { x: { display: false }, y: { display: false } }
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: true,
+          backgroundColor: '#0d1117',
+          borderColor: color,
+          borderWidth: 1,
+          titleColor: '#5a7a94',
+          bodyColor: '#e8edf2',
+          padding: 8,
+          displayColors: false,
+          titleFont: { family: "'Space Mono', monospace", size: 9 },
+          bodyFont: { family: "'Syne', sans-serif", size: 12, weight: '700' },
+          callbacks: {
+            title: items => data[items[0].dataIndex]?.date ?? '',
+            label: item => ' ' + Number(item.parsed.y).toLocaleString(undefined, { maximumFractionDigits: 2 })
+          }
+        }
+      },
+      scales: {
+        x: {
+          display: true,
+          grid: { display: false },
+          border: { display: false },
+          ticks: {
+            color: '#3d5a6e',
+            font: { size: 8, family: "'Space Mono', monospace" },
+            maxRotation: 0,
+            autoSkip: false,
+          }
+        },
+        y: { display: false }
+      }
     }
   });
 }
@@ -760,50 +727,10 @@ function updateCard(name, rawObs) {
   const sparkSlice = obs;
   const sparkColor = name === 'Unemployment' ? '#ff6b35' : name === 'M2' || name === '10Y_Yield' ? '#ffd700' : '#00d4ff';
   makeSparkline(`spark-${name}`, sparkSlice, sparkColor);
-  const rangeEl = document.getElementById('spark-range-' + name);
-  if (rangeEl && sparkSlice.length > 1) {
-    rangeEl.textContent = sparkSlice[0].date + ' — ' + sparkSlice[sparkSlice.length - 1].date;
-  }
 }
 
 // ─── UPDATE TABLE ─────────────────────────────────────────
 
-
-// ─── UPDATE TICKER ────────────────────────────────────────
-function updateTicker(allData, marketData) {
-  const items = [];
-
-  for (const [name, obs] of Object.entries(allData)) {
-    if (!obs || obs.length < 2) continue;
-    const cfg = FRED_SERIES[name];
-    const latest = obs[obs.length - 1];
-    const prior = obs[obs.length - 2];
-    const pct = ((latest.value - prior.value) / Math.abs(prior.value) * 100).toFixed(2);
-    const pos = pct >= 0;
-    items.push({ name: cfg.id, val: latest.value.toFixed(cfg.decimals) + cfg.unit, chg: `${pos?'+':''}${pct}%`, pos });
-  }
-
-  for (const [sym, d] of Object.entries(marketData)) {
-    if (!d || d.length < 2) continue;
-    const latest = d[d.length - 1];
-    const prior = d[d.length - 2];
-    const pct = ((latest.value - prior.value) / Math.abs(prior.value) * 100).toFixed(2);
-    const pos = pct >= 0;
-    items.push({ name: sym === '^GSPC' ? 'S&P 500' : sym === 'CL=F' ? 'WTI' : 'DXY', val: latest.value.toFixed(2), chg: `${pos?'+':''}${pct}%`, pos });
-  }
-
-  // Duplicate for seamless scroll
-  const html = [...items, ...items].map(it => `
-    <div class="ticker-item">
-      <span class="t-name">${it.name}</span>
-      <span class="t-val">${it.val}</span>
-      <span class="t-chg ${it.pos ? 'pos' : 'neg'}">${it.chg}</span>
-    </div>
-  `).join('');
-
-  const scroller = document.getElementById('tickerScroll');
-  if (html) scroller.innerHTML = html;
-}
 
 // ─── MAIN FETCH ───────────────────────────────────────────
 async function fetchAll() {
@@ -934,8 +861,6 @@ async function fetchAll() {
     }
   }
 
-  updateTicker(allFredData, marketData);
-
   const now = new Date();
   const ts = now.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   document.getElementById('last-updated').textContent = `Updated ${ts}`;
@@ -960,7 +885,5 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<!-- bottom spacer for ticker tape -->
-<div style="height:36px"></div>
 </body>
 </html>
