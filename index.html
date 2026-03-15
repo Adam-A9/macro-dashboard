@@ -21,8 +21,8 @@
     --green: #00ff9d;
     --gold: #ffd700;
     --text: #e8edf2;
-    --muted: #5a7a94;
-    --muted2: #3d5a6e;
+    --muted: #d8eaf5;
+    --muted2: #c8dff0;
     --grid: rgba(0,212,255,0.04);
   }
 
@@ -534,20 +534,10 @@ function filterToTwoYears(obs) {
 }
 
 async function fetchWithProxy(url) {
-  const proxies = [
-    'https://corsproxy.io/?' + encodeURIComponent(url),
-    'https://api.allorigins.win/get?url=' + encodeURIComponent(url),
-    'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url),
-  ];
-  for (const p of proxies) {
-    try {
-      const res = await fetch(p);
-      if (!res.ok) continue;
-      const raw = await res.json();
-      return raw.contents ? JSON.parse(raw.contents) : raw;
-    } catch(_) { continue; }
-  }
-  throw new Error('all proxies failed for: ' + url);
+  const proxy = 'https://quiet-moon-b6d5.adamaun9.workers.dev/?url=' + encodeURIComponent(url);
+  const res = await fetch(proxy);
+  if (!res.ok) throw new Error('proxy failed: HTTP ' + res.status);
+  return await res.json();
 }
 
 async function fetchFRED(seriesId, apiKey, limit = 30) {
@@ -575,7 +565,7 @@ async function fetchMarket(symbol) {
 }
 
 // ─── CHART HELPERS ────────────────────────────────────────
-Chart.defaults.color = '#5a7a94';
+Chart.defaults.color = '#d8eaf5';
 Chart.defaults.font.family = "'Space Mono', monospace";
 Chart.defaults.font.size = 10;
 
@@ -620,7 +610,7 @@ function makeLineChart(canvasId, labels, data, color, fill = true) {
           backgroundColor: '#0d1117',
           borderColor: color,
           borderWidth: 1,
-          titleColor: '#5a7a94',
+          titleColor: '#d8eaf5',
           bodyColor: '#e8edf2',
           padding: 10,
           displayColors: false,
@@ -673,7 +663,7 @@ function makeSparkline(canvasId, data, color) {
           backgroundColor: '#0d1117',
           borderColor: color,
           borderWidth: 1,
-          titleColor: '#5a7a94',
+          titleColor: '#d8eaf5',
           bodyColor: '#e8edf2',
           padding: 8,
           displayColors: false,
@@ -691,7 +681,7 @@ function makeSparkline(canvasId, data, color) {
           grid: { display: false },
           border: { display: false },
           ticks: {
-            color: '#3d5a6e',
+            color: '#d8eaf5',
             font: { size: 8, family: "'Space Mono', monospace" },
             maxRotation: 0,
             autoSkip: false,
@@ -811,7 +801,7 @@ async function fetchAll() {
             legend: { display: false },
             tooltip: {
               backgroundColor: '#0d1117', borderColor: cfg.color, borderWidth: 1,
-              titleColor: '#5a7a94', bodyColor: '#e8edf2', padding: 10, displayColors: false,
+              titleColor: '#d8eaf5', bodyColor: '#e8edf2', padding: 10, displayColors: false,
               titleFont: { family: "'Space Mono', monospace", size: 10 },
               bodyFont: { family: "'Syne', sans-serif", size: 15, weight: '700' },
               callbacks: {
