@@ -566,6 +566,37 @@
       <div class="chart-container" style="height:150px"><canvas id="chartVIX"></canvas></div>
     </div>
 
+
+    <!-- Gold -->
+    <div class="chart-panel" style="animation-delay:0.65s;">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Gold</div>
+          <div class="panel-sub">GC=F · Daily</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="gold-val" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;">–</span>
+          <span id="gold-chg" style="font-size:11px;">–</span>
+        </div>
+      </div>
+      <div class="chart-container" style="height:150px"><canvas id="chartGold"></canvas></div>
+    </div>
+
+    <!-- Bitcoin -->
+    <div class="chart-panel" style="animation-delay:0.7s;">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Bitcoin</div>
+          <div class="panel-sub">BTC-USD · Daily</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="btc-val" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;">–</span>
+          <span id="btc-chg" style="font-size:11px;">–</span>
+        </div>
+      </div>
+      <div class="chart-container" style="height:150px"><canvas id="chartBTC"></canvas></div>
+    </div>
+
   </div><!-- end charts wrapper -->
 
 </main>
@@ -598,10 +629,12 @@ const FRED_SERIES = {
 };
 
 const MARKET = {
-  "^GSPC":    { label: "S&P 500",      canvasId: "chartSPX", valId: "spx-val", chgId: "spx-chg", color: "#00d4ff" },
-  "CL=F":     { label: "WTI Crude",    canvasId: "chartOil", valId: "oil-val", chgId: "oil-chg", color: "#ff6b35" },
-  "DX-Y.NYB": { label: "US Dollar",    canvasId: "chartDXY", valId: "dxy-val", chgId: "dxy-chg", color: "#ffd700" },
-  "^VIX":     { label: "VIX",             canvasId: "chartVIX", valId: "vix-val", chgId: "vix-chg", color: "#ff3b5c" }
+  "^GSPC":    { label: "S&P 500",   canvasId: "chartSPX",  valId: "spx-val",  chgId: "spx-chg",  color: "#00d4ff" },
+  "CL=F":     { label: "WTI Crude", canvasId: "chartOil",  valId: "oil-val",  chgId: "oil-chg",  color: "#ff6b35" },
+  "DX-Y.NYB": { label: "US Dollar", canvasId: "chartDXY",  valId: "dxy-val",  chgId: "dxy-chg",  color: "#ffd700" },
+  "^VIX":     { label: "VIX",       canvasId: "chartVIX",  valId: "vix-val",  chgId: "vix-chg",  color: "#ff3b5c" },
+  "GC=F":     { label: "Gold",      canvasId: "chartGold", valId: "gold-val", chgId: "gold-chg", color: "#ffd700" },
+  "BTC-USD":  { label: "Bitcoin",   canvasId: "chartBTC",  valId: "btc-val",  chgId: "btc-chg",  color: "#f7931a" }
 };
 
 
@@ -870,7 +903,7 @@ async function fetchAll() {
 
 
   // MARKET DATA — Yahoo Finance via proxy, fetched sequentially to avoid rate limits
-  const marketSymbols = ['^GSPC', 'CL=F', 'DX-Y.NYB', '^VIX'];
+  const marketSymbols = ['^GSPC', 'CL=F', 'DX-Y.NYB', '^VIX', 'GC=F', 'BTC-USD'];
   for (let i = 0; i < marketSymbols.length; i++) {
     if (i > 0) await sleep(600); // stagger requests so proxy doesn't rate limit
     const sym = marketSymbols[i];
