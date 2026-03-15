@@ -857,6 +857,7 @@ const REFRESH_INTERVAL = 15 * 60 * 1000;
 let charts = {};
 let sparklines = {};
 let refreshTimer;
+const seriesRawData = {}; // stores full raw obs for YoY lookups
 
 // ─── FRED FETCH ────────────────────────────────────────────
 function parseFREDJson(json) {
@@ -1062,32 +1063,98 @@ function updateCard(name, rawObs) {
   const sparkColor = name === 'Unemployment' ? '#ff6b35' : name === 'M2' || name === '10Y_Yield' ? '#ffd700' : '#00d4ff';
   makeSparkline(`spark-${name}`, sparkSlice, sparkColor);
 
-  // Mini table: last 8 readings with heatmap coloring
-  const tableObs = obs.slice(-8);
-  const wrap = document.getElementById('mini-table-' + name);
-  if (wrap) {
-    const vals = tableObs.map(d => d.value);
-    const minVal = Math.min(...vals);
-    const maxVal = Math.max(...vals);
-    const range = maxVal - minVal || 1;
-    // For unemployment/jobless claims lower = better, invert color
-    // Lower is better for these — red=high, green=low
-    const invertColor = !['GDP', 'Retail_Sales', 'Housing_Starts', 'M2', 'FedFunds', 'Spread'].includes(name);
-    function heatColor(val) {
-      let t = (val - minVal) / range; // 0=min, 1=max
-      if (invertColor) t = 1 - t; // invert so low=good=green
-      // t=0 → red (bad), t=1 → green (good)
-      if (t < 0.5) {
-        const r = Math.round(180 + (0.5 - t) * 2 * 75); // more red when t near 0
-        return `rgba(${r},40,60,0.4)`;
-      } else {
-        const g = Math.round(80 + (t - 0.5) * 2 * 150); // more green when t near 1
-        return `rgba(0,${g},60,0.4)`;
-      }
+    // ── HEATMAP RULES ─────────────────────────────────────────
+  // Higher = good (green): GDP, Retail_Sales, Housing_Starts, M2
+  // Higher = bad  (red):   CPI, PPI, Unemployment, Jobless_Claims, CC_Delinquency, FedFunds, 10Y_Yield
+  // Spread: positive = green (healthy curve), negative = red (inverted)
+  const HIGHER_IS_GOOD = ['GDP', 'Retail_Sales', 'Housing_Starts', 'M2'];
+  const DUAL_ROW       = ['CPI', 'PPI', 'GDP', 'Retail_Sales', 'Housing_Starts'];
+
+  function cellColor(val, seriesName, isChangePct) {
+    if (seriesName === 'Spread') return val >= 0 ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
+    if (isChangePct) {
+      const good = HIGHER_IS_GOOD.includes(seriesName) ? val >= 0 : val <= 0;
+      return good ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
     }
-    const headerCells = tableObs.map(d => `<th>${d.date.slice(0,7)}</th>`).join('');
-    const valueCells = tableObs.map(d => `<td style="background:${heatColor(d.value)}">${d.value.toLocaleString(undefined,{maximumFractionDigits:cfg.decimals})}${cfg.unit}</td>`).join('');
-    wrap.innerHTML = `<table class="mini-table"><thead><tr>${headerCells}</tr></thead><tbody><tr>${valueCells}</tr></tbody></table>`;
+    return null;
+  }
+
+  function gradientColor(t, higherIsGood) {
+    const g = higherIsGood ? t : 1 - t;
+    if (g < 0.5) { const r = Math.round(180 + (0.5-g)*2*75); return 'rgba('+r+',40,60,0.4)'; }
+    else { const gr = Math.round(80 + (g-0.5)*2*150); return 'rgba(0,'+gr+',60,0.4)'; }
+  }
+
+  const tableObs9 = obs.slice(-9);
+  const wrap = document.getElementById('mini-table-' + name);
+  if (wrap && tableObs9.length >= 2) {
+
+    if (DUAL_ROW.includes(name)) {
+      const displayObs = tableObs9.slice(-8);
+      const headers = displayObs.map(d => '<th>' + d.date.slice(0,7) + '</th>').join('');
+
+      // MoM %
+      const momVals = displayObs.map((d, i) => {
+        const prior = tableObs9[tableObs9.length - 8 + i - 1];
+        return prior ? ((d.value - prior.value) / Math.abs(prior.value)) * 100 : null;
+      });
+      // Color each cell vs the previous cell — is this reading better or worse than last?
+      function trendColor(cur, prev, seriesName) {
+        if (prev === null || cur === null) return 'transparent';
+        const improved = HIGHER_IS_GOOD.includes(seriesName) ? cur > prev : cur < prev;
+        return improved ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
+      }
+
+      const momCells = momVals.map((v, i) => {
+        if (v === null) return '<td style="color:var(--muted)">–</td>';
+        const bg = trendColor(v, momVals[i-1] ?? null, name);
+        return '<td style="background:' + bg + '">' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%</td>';
+      }).join('');
+
+      // YoY %
+      const fullObs = seriesRawData[name] || obs;
+      const yoyVals = displayObs.map(d => {
+        const priorDate = (parseInt(d.date.slice(0,4))-1) + d.date.slice(4);
+        const prior = fullObs.find(p => p.date === priorDate) ||
+          fullObs.filter(p => p.date < d.date && p.date >= priorDate).slice(-1)[0];
+        return prior ? ((d.value - prior.value) / Math.abs(prior.value)) * 100 : null;
+      });
+      const yoyCells = yoyVals.map((v, i) => {
+        if (v === null) return '<td style="color:var(--muted)">–</td>';
+        const bg = trendColor(v, yoyVals[i-1] ?? null, name);
+        return '<td style="background:' + bg + '">' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%</td>';
+      }).join('');
+
+      wrap.innerHTML =
+        '<table class="mini-table"><thead><tr><th></th>' + headers + '</tr></thead><tbody>' +
+        '<tr><td style="color:var(--muted);font-size:8px;padding-right:6px;white-space:nowrap;">MoM</td>' + momCells + '</tr>' +
+        '<tr><td style="color:var(--muted);font-size:8px;padding-right:6px;white-space:nowrap;">YoY</td>' + yoyCells + '</tr>' +
+        '</tbody></table>';
+
+    } else {
+      // Single raw value row with gradient
+      const displayObs = tableObs9.slice(-8);
+      const vals = displayObs.map(d => d.value);
+      const mn = Math.min(...vals), mx = Math.max(...vals), rng = mx - mn || 1;
+      const higherIsGood = HIGHER_IS_GOOD.includes(name);
+      const headers = displayObs.map(d => '<th>' + d.date.slice(0,7) + '</th>').join('');
+      const cells = displayObs.map((d, i) => {
+        const prev = i > 0 ? displayObs[i-1].value : null;
+        let bg;
+        if (prev === null) {
+          bg = 'transparent';
+        } else if (name === 'Spread') {
+          // Spread: getting more positive is good
+          bg = d.value > prev ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
+        } else {
+          const improved = higherIsGood ? d.value > prev : d.value < prev;
+          bg = improved ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
+        }
+        return '<td style="background:' + bg + '">' +
+          d.value.toLocaleString(undefined,{maximumFractionDigits:cfg.decimals}) + cfg.unit + '</td>';
+      }).join('');
+      wrap.innerHTML = '<table class="mini-table"><thead><tr>' + headers + '</tr></thead><tbody><tr>' + cells + '</tr></tbody></table>';
+    }
   }
 }
 
@@ -1115,7 +1182,8 @@ async function fetchAll() {
       if (i > 0) await sleep(300);
       const name = fredNames[i];
       try {
-        const obs = await fetchFRED(FRED_SERIES[name].id, apiKey, 60);
+        const obs = await fetchFRED(FRED_SERIES[name].id, apiKey, 40);
+        seriesRawData[name] = obs;
         allFredData[name] = obs;
         updateCard(name, obs);
       } catch(e) {
