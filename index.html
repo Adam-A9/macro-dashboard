@@ -443,6 +443,135 @@
     .kpi-value { font-size: 20px !important; }
     .live-badge span:last-child { display: none; }
   }
+
+  /* ── ECONOMIC CALENDAR ─────────────────────────────────── */
+  .calendar-section {
+    position: relative;
+    z-index: 1;
+    padding: 0 24px 20px;
+  }
+  .calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .calendar-title {
+    color: var(--accent);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .calendar-range {
+    color: var(--muted);
+    font-size: 9px;
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: 80px 52px 1fr auto;
+    border: 1px solid var(--border);
+  }
+  .cal-date {
+    background: var(--surface);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .cal-date-day { color: var(--text); font-size: 10px; font-weight: bold; }
+  .cal-date-time { color: var(--muted); font-size: 9px; }
+  .cal-event {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cal-bar {
+    width: 3px;
+    height: 28px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .cal-name { color: var(--text); font-size: 11px; }
+  .cal-sub { color: var(--muted); font-size: 9px; margin-top: 1px; }
+  .cal-days {
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .cal-days-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+  }
+  .cal-days-label {
+    color: var(--muted);
+    font-size: 8px;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+  .cal-prev {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .cal-prev-label { color: var(--muted); font-size: 9px; }
+  .cal-prev-val { color: var(--text); font-size: 10px; margin-top: 1px; text-align: right; }
+  .cal-fomc { background: #131a22; }
+  .cal-impact {
+    background: rgba(255,59,92,0.08);
+    border: 1px solid rgba(255,59,92,0.25);
+    color: var(--red);
+    font-size: 9px;
+    padding: 2px 6px;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .cal-grid-last .cal-date,
+  .cal-grid-last .cal-event,
+  .cal-grid-last .cal-prev { border-bottom: none; }
+  .cal-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .cal-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--muted);
+    font-size: 9px;
+  }
+  .cal-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .cal-empty {
+    grid-column: 1/-1;
+    padding: 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  @media (max-width: 768px) {
+    .calendar-section { padding: 0 12px 16px; }
+    .calendar-grid { grid-template-columns: 65px 1fr; }
+    .cal-prev { display: none; }
+    .cal-days { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -605,20 +734,21 @@
       <div class="chart-container" style="height:150px"><canvas id="chartSPX"></canvas></div>
     </div>
 
-    <!-- WTI Crude -->
-    <div class="chart-panel" style="animation-delay:0.5s;">
+    <!-- VIX -->
+    <div class="chart-panel" style="animation-delay:0.6s;">
       <div class="panel-header">
         <div>
-          <div class="panel-title">Crude Oil</div>
-          <div class="panel-sub">WTI · Daily</div>
+          <div class="panel-title">VIX Volatility Index</div>
+          <div class="panel-sub">Fear Index · Daily</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <span id="oil-val" style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;">–</span>
-          <span id="oil-chg" style="font-size:11px;">–</span>
+          <span id="vix-val" style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;">–</span>
+          <span id="vix-chg" style="font-size:11px;">–</span>
         </div>
       </div>
-      <div class="chart-container" style="height:150px"><canvas id="chartOil"></canvas></div>
+      <div class="chart-container" style="height:150px"><canvas id="chartVIX"></canvas></div>
     </div>
+
 
     <!-- DXY -->
     <div class="chart-panel" style="animation-delay:0.55s;">
@@ -635,21 +765,20 @@
       <div class="chart-container" style="height:150px"><canvas id="chartDXY"></canvas></div>
     </div>
 
-    <!-- VIX -->
-    <div class="chart-panel" style="animation-delay:0.6s;">
+    <!-- WTI Crude -->
+    <div class="chart-panel" style="animation-delay:0.5s;">
       <div class="panel-header">
         <div>
-          <div class="panel-title">VIX Volatility Index</div>
-          <div class="panel-sub">Fear Index · Daily</div>
+          <div class="panel-title">Crude Oil</div>
+          <div class="panel-sub">WTI · Daily</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <span id="vix-val" style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;">–</span>
-          <span id="vix-chg" style="font-size:11px;">–</span>
+          <span id="oil-val" style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;">–</span>
+          <span id="oil-chg" style="font-size:11px;">–</span>
         </div>
       </div>
-      <div class="chart-container" style="height:150px"><canvas id="chartVIX"></canvas></div>
+      <div class="chart-container" style="height:150px"><canvas id="chartOil"></canvas></div>
     </div>
-
 
     <!-- Gold -->
     <div class="chart-panel" style="animation-delay:0.65s;">
@@ -1100,8 +1229,329 @@ window.addEventListener('DOMContentLoaded', () => {
     icon.addEventListener('mouseleave', () => card.classList.remove('show-tip'));
   });
   fetchAll();
+  fetchCalendar();
 });
+
+
+// ─── ECONOMIC CALENDAR ───────────────────────────────────
+// Map FMP event names → frequency bar color
+const CAL_COLORS = {
+  'GDP':                       '#ffd700',
+  'Gross Domestic Product':    '#ffd700',
+  'Initial Jobless Claims':    '#a78bfa',
+  'Jobless Claims':            '#a78bfa',
+  'CPI':                       '#00ff9d',
+  'Consumer Price Index':      '#00ff9d',
+  'PPI':                       '#00ff9d',
+  'Producer Price Index':      '#00ff9d',
+  'Retail Sales':              '#00ff9d',
+  'Housing Starts':            '#00ff9d',
+  'Unemployment Rate':         '#00ff9d',
+  'Nonfarm Payrolls':          '#00ff9d',
+  'PCE':                       '#00ff9d',
+  'Personal Consumption':      '#00ff9d',
+  'Fed Interest Rate Decision':'#ff3b5c',
+  'FOMC':                      '#ff3b5c',
+  'Federal Reserve':           '#ff3b5c',
+  'ISM':                       '#00d4ff',
+  'Treasury':                  '#00d4ff',
+};
+
+function getCalColor(name) {
+  for (const [key, color] of Object.entries(CAL_COLORS)) {
+    if (name.toLowerCase().includes(key.toLowerCase())) return color;
+  }
+  return '#5a7a94';
+}
+
+function isFOMC(name) {
+  return name.toLowerCase().includes('fed') ||
+         name.toLowerCase().includes('fomc') ||
+         name.toLowerCase().includes('interest rate decision');
+}
+
+function formatCalDate(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatCalTime(timeStr) {
+  if (!timeStr) return '';
+  // timeStr like "08:30" or "08:30:00"
+  const [h, m] = timeStr.split(':');
+  const hour = parseInt(h);
+  const ampm = hour >= 12 ? 'pm' : 'am';
+  const h12 = hour % 12 || 12;
+  return h12 + ':' + m + ' ' + ampm + ' ET';
+}
+
+// ─── 2026 US ECONOMIC CALENDAR (hardcoded) ───────────────
+// Sources: BLS, Census Bureau, BEA, Federal Reserve
+// Update each January with the new year's release schedule
+const CALENDAR_2026 = [
+  // JANUARY
+  { date: '2026-01-07', time: '08:30', event: 'ADP Employment Report',        freq: 'MoM', source: 'ADP',           impact: false },
+  { date: '2026-01-08', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-01-09', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-01-09', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-01-15', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-01-15', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-01-16', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-01-17', time: '09:15', event: 'Industrial Production',         freq: 'MoM', source: 'Federal Reserve',impact: false },
+  { date: '2026-01-22', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-01-27', time: '08:30', event: 'GDP Advance Estimate Q4 2025', freq: 'QoQ', source: 'BEA',            impact: true  },
+  { date: '2026-01-28', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+  { date: '2026-01-28', time: '10:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
+  { date: '2026-01-29', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-01-30', time: '10:00', event: 'Consumer Sentiment (UMich)',    freq: 'MoM', source: 'U of Michigan', impact: false },
+
+  // FEBRUARY
+  { date: '2026-02-05', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-02-06', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-02-06', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-02-11', time: '10:00', event: 'Consumer Sentiment (UMich)',    freq: 'MoM', source: 'U of Michigan', impact: false },
+  { date: '2026-02-12', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-02-12', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-02-13', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-02-17', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
+  { date: '2026-02-18', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
+  { date: '2026-02-19', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-02-26', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+  { date: '2026-02-26', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-02-27', time: '08:30', event: 'GDP Second Estimate Q4 2025',  freq: 'QoQ', source: 'BEA',            impact: false },
+
+  // MARCH
+  { date: '2026-03-05', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-03-06', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-03-06', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-03-11', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-03-12', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-03-13', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-03-17', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
+  { date: '2026-03-18', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
+  { date: '2026-03-18', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
+  { date: '2026-03-19', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-03-26', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-03-27', time: '08:30', event: 'GDP Third Estimate Q4 2025',   freq: 'QoQ', source: 'BEA',            impact: false },
+  { date: '2026-03-27', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+
+  // APRIL
+  { date: '2026-04-02', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-04-03', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-04-03', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-04-10', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-04-09', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-04-14', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-04-15', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
+  { date: '2026-04-16', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
+  { date: '2026-04-16', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-04-23', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-04-29', time: '08:30', event: 'GDP Advance Estimate Q1 2026', freq: 'QoQ', source: 'BEA',            impact: true  },
+  { date: '2026-04-30', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+  { date: '2026-04-29', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
+
+  // MAY
+  { date: '2026-05-07', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-05-08', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-05-08', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-05-13', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-05-14', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-05-14', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-05-15', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
+  { date: '2026-05-19', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
+  { date: '2026-05-21', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-05-28', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-05-29', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+
+  // JUNE
+  { date: '2026-06-04', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-06-05', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-06-05', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-06-10', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-06-11', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-06-11', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-06-16', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
+  { date: '2026-06-17', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
+  { date: '2026-06-17', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
+  { date: '2026-06-18', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-06-25', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-06-26', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+
+  // JULY
+  { date: '2026-07-02', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-07-02', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-07-02', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-07-09', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-07-14', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-07-15', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-07-15', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
+  { date: '2026-07-16', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-07-17', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
+  { date: '2026-07-23', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-07-28', time: '08:30', event: 'GDP Advance Estimate Q2 2026', freq: 'QoQ', source: 'BEA',            impact: true  },
+  { date: '2026-07-29', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
+  { date: '2026-07-30', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-07-31', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+
+  // AUGUST
+  { date: '2026-08-06', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-08-07', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-08-07', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-08-12', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-08-13', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-08-13', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-08-14', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
+  { date: '2026-08-18', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
+  { date: '2026-08-20', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-08-27', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-08-28', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+
+  // SEPTEMBER
+  { date: '2026-09-03', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-09-04', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-09-04', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-09-10', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-09-10', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-09-11', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-09-15', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
+  { date: '2026-09-16', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
+  { date: '2026-09-16', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
+  { date: '2026-09-17', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-09-24', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-09-25', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+
+  // OCTOBER
+  { date: '2026-10-01', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-10-02', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-10-02', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-10-08', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-10-14', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-10-15', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-10-15', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-10-16', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
+  { date: '2026-10-20', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
+  { date: '2026-10-22', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-10-28', time: '08:30', event: 'GDP Advance Estimate Q3 2026', freq: 'QoQ', source: 'BEA',            impact: true  },
+  { date: '2026-10-28', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
+  { date: '2026-10-29', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-10-30', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+
+  // NOVEMBER
+  { date: '2026-11-05', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-11-06', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-11-06', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-11-12', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-11-12', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-11-13', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-11-17', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
+  { date: '2026-11-18', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
+  { date: '2026-11-19', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-11-25', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+  { date: '2026-11-26', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+
+  // DECEMBER
+  { date: '2026-12-03', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-12-04', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-12-04', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-12-09', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
+  { date: '2026-12-10', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-12-10', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
+  { date: '2026-12-15', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
+  { date: '2026-12-16', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
+  { date: '2026-12-16', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
+  { date: '2026-12-17', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+  { date: '2026-12-22', time: '08:30', event: 'GDP Third Estimate Q3 2026',   freq: 'QoQ', source: 'BEA',            impact: false },
+  { date: '2026-12-23', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
+  { date: '2026-12-24', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
+];
+
+const FREQ_COLORS = {
+  'DoD': '#00d4ff', 'WoW': '#a78bfa', 'MoM': '#00ff9d', 'QoQ': '#ffd700', 'Fed': '#ff3b5c'
+};
+
+function fetchCalendar() {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const future = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const events = CALENDAR_2026.filter(e => e.date >= today && e.date <= future);
+  renderCalendar(events, today, future);
+}
+
+function renderCalendar(events, from, to) {
+  const filtered = [...events].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const rangeEl = document.getElementById('cal-range');
+  if (rangeEl) rangeEl.textContent = formatCalDate(from) + ' — ' + formatCalDate(to);
+
+  const grid = document.getElementById('calendarGrid');
+  if (!grid) return;
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="cal-empty">No events in the next 14 days.</div>';
+    return;
+  }
+
+  let html = '';
+  filtered.forEach((ev, idx) => {
+    const isLast = idx === filtered.length - 1;
+    const lastClass = isLast ? ' cal-grid-last' : '';
+    const fomc = ev.freq === 'Fed';
+    const fomcClass = fomc ? ' cal-fomc' : '';
+    const color = FREQ_COLORS[ev.freq] || '#5a7a94';
+    const dateStr = formatCalDate(ev.date);
+    const timeStr = ev.time ? formatCalTime(ev.time) : '';
+
+    const daysAway = Math.ceil((new Date(ev.date) - new Date(new Date().toISOString().slice(0,10))) / 86400000);
+    const daysColor = daysAway === 0 ? 'var(--accent2)' : daysAway <= 3 ? 'var(--warn)' : 'var(--text)';
+    const daysLabel = daysAway === 0 ? 'today' : daysAway === 1 ? 'day' : 'days';
+
+    html += '<div class="cal-date' + lastClass + fomcClass + '">' +
+      '<div class="cal-date-day">' + dateStr + '</div>' +
+      (timeStr ? '<div class="cal-date-time">' + timeStr + '</div>' : '') +
+      '</div>';
+
+    html += '<div class="cal-days' + lastClass + fomcClass + '">' +
+      '<div class="cal-days-num" style="color:' + daysColor + ';">' + (daysAway === 0 ? '–' : daysAway) + '</div>' +
+      '<div class="cal-days-label">' + daysLabel + '</div>' +
+      '</div>';
+
+    html += '<div class="cal-event' + fomcClass + lastClass + '">' +
+      '<span class="cal-bar" style="background:' + color + ';"></span>' +
+      '<div>' +
+        '<div class="cal-name">' + ev.event + '</div>' +
+        '<div class="cal-sub">' + ev.source + ' · ' + ev.freq + '</div>' +
+      '</div>' +
+      (ev.impact ? '<span class="cal-impact" style="margin-left:auto;">HIGH IMPACT</span>' : '') +
+      '</div>';
+
+    html += '<div class="cal-prev' + fomcClass + lastClass + '">' +
+      '<div style="text-align:right;">' +
+        '<div class="cal-prev-label">' + ev.freq + '</div>' +
+      '</div>' +
+      '</div>';
+  });
+
+  grid.innerHTML = html;
+}
+
 </script>
 
+
+<div class="calendar-section">
+  <div class="calendar-header">
+    <span class="calendar-title">// Economic Calendar</span>
+    <span class="calendar-range" id="cal-range">Loading…</span>
+  </div>
+  <div class="calendar-grid" id="calendarGrid">
+    <div class="cal-empty">Loading calendar…</div>
+  </div>
+  <div class="cal-legend">
+    <div class="cal-legend-item"><div class="cal-dot" style="background:#00d4ff;"></div>DoD</div>
+    <div class="cal-legend-item"><div class="cal-dot" style="background:#a78bfa;"></div>WoW</div>
+    <div class="cal-legend-item"><div class="cal-dot" style="background:#00ff9d;"></div>MoM</div>
+    <div class="cal-legend-item"><div class="cal-dot" style="background:#ffd700;"></div>QoQ</div>
+    <div class="cal-legend-item"><div class="cal-dot" style="background:#ff3b5c;"></div>FOMC</div>
+  </div>
+</div>
 </body>
 </html>
