@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MACRO — Economic Intelligence Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #080c10;
+    --surface: #0d1117;
+    --surface2: #131a22;
+    --border: #1e2d3d;
+    --border2: #243447;
+    --accent: #00d4ff;
+    --accent2: #00ff9d;
+    --warn: #ff6b35;
+    --red: #ff3b5c;
+    --green: #00ff9d;
+    --gold: #ffd700;
+    --text: #e8edf2;
+    --muted: #5a7a94;
+    --muted2: #3d5a6e;
+    --grid: rgba(0,212,255,0.04);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 39px, var(--grid) 39px, var(--grid) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, var(--grid) 39px, var(--grid) 40px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(8,12,16,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--muted); font-weight: 400; }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent2);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,255,157,0.4); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(0,255,157,0); }
+  }
+
+  #last-updated {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+  }
+
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 6px 12px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .refresh-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .refresh-btn.loading { opacity: 0.5; cursor: not-allowed; }
+
+  /* MAIN LAYOUT */
+  .main {
+    position: relative;
+    z-index: 1;
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto auto;
+    gap: 12px;
+  }
+
+  /* TICKER TAPE */
+  .ticker-tape {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    height: 36px;
+    display: flex;
+    align-items: center;
+  }
+  .ticker-label {
+    background: var(--accent);
+    color: var(--bg);
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    padding: 0 12px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .ticker-scroll {
+    display: flex;
+    gap: 0;
+    animation: scroll 40s linear infinite;
+    white-space: nowrap;
+  }
+  @keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .ticker-item {
+    padding: 0 24px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ticker-item .t-name { color: var(--muted); }
+  .ticker-item .t-val { color: var(--text); }
+  .ticker-item .t-chg.pos { color: var(--green); }
+  .ticker-item .t-chg.neg { color: var(--red); }
+
+  /* KPI CARDS */
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+    animation: fadeIn 0.5s ease forwards;
+    opacity: 0;
+  }
+  .kpi-card:hover { border-color: var(--border2); }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+  .kpi-card.warn::before { background: linear-gradient(90deg, var(--warn), transparent); }
+  .kpi-card.good::before { background: linear-gradient(90deg, var(--green), transparent); }
+  .kpi-card.gold::before { background: linear-gradient(90deg, var(--gold), transparent); }
+
+  @keyframes fadeIn {
+    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(8px); }
+  }
+
+  .kpi-label {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .kpi-series-id {
+    background: var(--surface2);
+    color: var(--muted2);
+    font-size: 8px;
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+  }
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1;
+  }
+  .kpi-value.loading-text { font-size: 16px; color: var(--muted); animation: blink 1.2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .kpi-unit { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 3px; }
+  .kpi-change {
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .kpi-change.pos { color: var(--green); }
+  .kpi-change.neg { color: var(--red); }
+  .kpi-change.neutral { color: var(--muted); }
+  .kpi-date { color: var(--muted2); font-size: 9px; margin-top: 6px; }
+
+  .sparkline-wrap {
+    margin-top: 10px;
+    height: 40px;
+  }
+  .spark-range {
+    color: var(--muted2);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    margin-top: 4px;
+    text-align: right;
+  }
+
+  /* CHART PANELS */
+  .chart-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+    grid-column: span 2;
+    animation: fadeIn 0.6s ease forwards;
+    opacity: 0;
+  }
+  .chart-panel.wide { grid-column: span 4; }
+  .chart-panel.tall { grid-row: span 2; }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+  .panel-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .panel-sub {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .panel-badge {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    padding: 2px 6px;
+    border: 1px solid var(--border2);
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .chart-container { position: relative; }
+
+
+  /* FOOTER */
+  .footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--muted2);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ERROR */
+  .error-msg {
+    background: rgba(255,59,92,0.08);
+    border: 1px solid rgba(255,59,92,0.3);
+    color: var(--red);
+    padding: 8px 12px;
+    font-size: 11px;
+    grid-column: 1/-1;
+    display: none;
+  }
+
+  /* SECTION LABEL */
+  .section-label {
+    grid-column: 1/-1;
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 4px 0 0;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+
+  canvas { display: block; }
+
+  /* Staggered animation delays */
+  .kpi-card:nth-child(1) { animation-delay: 0.05s; }
+  .kpi-card:nth-child(2) { animation-delay: 0.10s; }
+  .kpi-card:nth-child(3) { animation-delay: 0.15s; }
+  .kpi-card:nth-child(4) { animation-delay: 0.20s; }
+  .kpi-card:nth-child(5) { animation-delay: 0.25s; }
+  .kpi-card:nth-child(6) { animation-delay: 0.30s; }
+  .kpi-card:nth-child(7) { animation-delay: 0.35s; }
+  .kpi-card:nth-child(8) { animation-delay: 0.40s; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">MACRO<span> // Economic Intelligence</span></div>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div>Auto-Refresh ON</div>
+    <span id="last-updated">–</span>
+    <button class="refresh-btn" id="refreshBtn" onclick="fetchAll()">↻ Refresh</button>
+  </div>
+</header>
+
+
+<main class="main">
+  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-card" id="card-GDP">
+    <div class="kpi-label">Real GDP <span class="kpi-series-id">GDP</span></div>
+    <div class="kpi-value loading-text" id="val-GDP">Loading…</div>
+    <div class="kpi-change neutral" id="chg-GDP">–</div>
+    <div class="kpi-date" id="date-GDP">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-GDP"></canvas></div>
+    <div class="spark-range" id="spark-range-GDP">–</div>
+  </div>
+
+  <div class="kpi-card warn" id="card-Unemployment">
+    <div class="kpi-label">Unemployment Rate <span class="kpi-series-id">UNRATE</span></div>
+    <div class="kpi-value loading-text" id="val-Unemployment">Loading…</div>
+    <div class="kpi-change neutral" id="chg-Unemployment">–</div>
+    <div class="kpi-date" id="date-Unemployment">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-Unemployment"></canvas></div>
+    <div class="spark-range" id="spark-range-Unemployment">–</div>
+  </div>
+
+  <div class="kpi-card" id="card-CPI">
+    <div class="kpi-label">CPI (All Urban) <span class="kpi-series-id">CPIAUCSL</span></div>
+    <div class="kpi-value loading-text" id="val-CPI">Loading…</div>
+    <div class="kpi-change neutral" id="chg-CPI">–</div>
+    <div class="kpi-date" id="date-CPI">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-CPI"></canvas></div>
+    <div class="spark-range" id="spark-range-CPI">–</div>
+  </div>
+
+  <div class="kpi-card" id="card-PPI">
+    <div class="kpi-label">Producer Price Index <span class="kpi-series-id">PPIACO</span></div>
+    <div class="kpi-value loading-text" id="val-PPI">Loading…</div>
+    <div class="kpi-change neutral" id="chg-PPI">–</div>
+    <div class="kpi-date" id="date-PPI">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-PPI"></canvas></div>
+    <div class="spark-range" id="spark-range-PPI">–</div>
+  </div>
+
+  <div class="kpi-card good" id="card-M2">
+    <div class="kpi-label">M2 Money Supply <span class="kpi-series-id">M2SL</span></div>
+    <div class="kpi-value loading-text" id="val-M2">Loading…</div>
+    <div class="kpi-change neutral" id="chg-M2">–</div>
+    <div class="kpi-date" id="date-M2">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-M2"></canvas></div>
+    <div class="spark-range" id="spark-range-M2">–</div>
+  </div>
+
+  <div class="kpi-card gold" id="card-10Y_Yield">
+    <div class="kpi-label">10-Year Treasury Yield <span class="kpi-series-id">DGS10</span></div>
+    <div class="kpi-value loading-text" id="val-10Y_Yield">Loading…</div>
+    <div class="kpi-change neutral" id="chg-10Y_Yield">–</div>
+    <div class="kpi-date" id="date-10Y_Yield">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-10Y_Yield"></canvas></div>
+    <div class="spark-range" id="spark-range-10Y_Yield">–</div>
+  </div>
+
+  <div class="kpi-card" id="card-Housing_Starts">
+    <div class="kpi-label">Housing Starts <span class="kpi-series-id">HOUST</span></div>
+    <div class="kpi-value loading-text" id="val-Housing_Starts">Loading…</div>
+    <div class="kpi-change neutral" id="chg-Housing_Starts">–</div>
+    <div class="kpi-date" id="date-Housing_Starts">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-Housing_Starts"></canvas></div>
+    <div class="spark-range" id="spark-range-Housing_Starts">–</div>
+  </div>
+
+  <div class="kpi-card" id="card-Retail_Sales">
+    <div class="kpi-label">Retail Sales <span class="kpi-series-id">RSAFS</span></div>
+    <div class="kpi-value loading-text" id="val-Retail_Sales">Loading…</div>
+    <div class="kpi-change neutral" id="chg-Retail_Sales">–</div>
+    <div class="kpi-date" id="date-Retail_Sales">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-Retail_Sales"></canvas></div>
+    <div class="spark-range" id="spark-range-Retail_Sales">–</div>
+  </div>
+
+  <!-- SECTION LABEL -->
+  <div class="section-label">// Market Data — Yahoo Finance</div>
+
+  <!-- CHARTS -->
+  <div class="chart-panel" style="animation-delay:0.45s">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">S&amp;P 500</div>
+        <div class="panel-sub">S&P 500 · Daily</div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <span id="spx-val" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;">–</span>
+        <span class="panel-badge" id="spx-chg">–</span>
+      </div>
+    </div>
+    <div class="chart-container" style="height:150px"><canvas id="chartSPX"></canvas></div>
+  </div>
+
+  <div class="chart-panel" style="animation-delay:0.5s">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Crude Oil</div>
+        <div class="panel-sub">WTI Crude · Daily</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="oil-val" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;">–</span>
+        <span id="oil-chg" style="font-size:11px;">–</span>
+      </div>
+    </div>
+    <div class="chart-container" style="height:150px"><canvas id="chartOil"></canvas></div>
+  </div>
+
+  <div class="chart-panel" style="animation-delay:0.55s">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">US Dollar Index</div>
+        <div class="panel-sub">DXY · Daily</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="dxy-val" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;">–</span>
+        <span id="dxy-chg" style="font-size:11px;">–</span>
+      </div>
+    </div>
+    <div class="chart-container" style="height:150px"><canvas id="chartDXY"></canvas></div>
+  </div>
+
+
+
+  <div class="chart-panel" style="animation-delay:0.6s">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">VIX Volatility</div>
+        <div class="panel-sub">Fear Index · Daily</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="vix-val" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;">–</span>
+        <span id="vix-chg" style="font-size:11px;">–</span>
+      </div>
+    </div>
+    <div class="chart-container" style="height:150px"><canvas id="chartVIX"></canvas></div>
+  </div>
+
+  <div class="section-label" style="grid-column:1/-1;margin-top:8px;">// Key Rate Charts — FRED</div>
+
+  <div class="chart-panel" style="animation-delay:0.65s;grid-column:span 2;">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Federal Funds Rate</div>
+        <div class="panel-sub">FEDFUNDS · Monthly · Most influential macro variable</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="fedfunds-val" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;">–</span>
+        <span id="fedfunds-chg" style="font-size:11px;color:var(--muted);">–</span>
+      </div>
+    </div>
+    <div class="chart-container" style="height:150px"><canvas id="chartFedFunds"></canvas></div>
+  </div>
+
+  <div class="chart-panel" style="animation-delay:0.7s;grid-column:span 2;">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Yield Curve — 10Y minus 2Y</div>
+        <div class="panel-sub">T10Y2Y · Daily · Negative = recession warning</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="spread-val" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;">–</span>
+        <span id="spread-chg" style="font-size:11px;color:var(--muted);">–</span>
+      </div>
+    </div>
+    <div class="chart-container" style="height:150px"><canvas id="chartSpread"></canvas></div>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <span>Data: Federal Reserve Bank of St. Louis (FRED) · Yahoo Finance</span>
+  <span id="footer-ts">–</span>
+</footer>
+
+<!-- TICKER TAPE (populated by JS) -->
+<div style="position:fixed;bottom:0;left:0;right:0;z-index:50;">
+  <div class="ticker-tape">
+    <div class="ticker-label">LIVE</div>
+    <div style="overflow:hidden;flex:1;">
+      <div class="ticker-scroll" id="tickerScroll"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────
+const FRED_SERIES = {
+  GDP:           { id: "GDP",      label: "Real GDP",         unit: "B$",  decimals: 0 },
+  Unemployment:  { id: "UNRATE",   label: "Unemployment",     unit: "%",   decimals: 1 },
+  CPI:           { id: "CPIAUCSL", label: "CPI",              unit: "",    decimals: 2 },
+  PPI:           { id: "PPIACO",   label: "PPI",              unit: "",    decimals: 2 },
+  M2:            { id: "M2SL",     label: "M2 Money Supply",  unit: "B$",  decimals: 0 },
+  "10Y_Yield":   { id: "DGS10",    label: "10-Year Yield",    unit: "%",   decimals: 2 },
+  Housing_Starts:{ id: "HOUST",    label: "Housing Starts",   unit: "K",   decimals: 0 },
+  Retail_Sales:  { id: "RSAFS",    label: "Retail Sales",     unit: "M$",  decimals: 0 }
+};
+
+// Extra FRED series for full charts only (not KPI cards)
+const FRED_CHARTS = {
+  FedFunds: { id: "FEDFUNDS", label: "Federal Funds Rate", unit: "%", color: "#ff3b5c" },
+  Spread:   { id: "T10Y2Y",   label: "10Y-2Y Yield Spread", unit: "%", color: "#ffd700" }
+};
+
+const MARKET = {
+  "^GSPC":    { label: "S&P 500",      canvasId: "chartSPX", valId: "spx-val", chgId: "spx-chg", color: "#00d4ff" },
+  "CL=F":     { label: "WTI Crude",    canvasId: "chartOil", valId: "oil-val", chgId: "oil-chg", color: "#ff6b35" },
+  "DX-Y.NYB": { label: "US Dollar",    canvasId: "chartDXY", valId: "dxy-val", chgId: "dxy-chg", color: "#ffd700" },
+  "^VIX":     { label: "VIX",             canvasId: "chartVIX", valId: "vix-val", chgId: "vix-chg", color: "#ff3b5c" }
+};
+
+
+
+// Auto-refresh every 15 minutes
+const REFRESH_INTERVAL = 15 * 60 * 1000;
+let charts = {};
+let sparklines = {};
+let refreshTimer;
+
+// ─── FRED FETCH ────────────────────────────────────────────
+function parseFREDJson(json) {
+  if (!json.observations) throw new Error('No observations in response');
+  return json.observations
+    .filter(o => o.value !== "." && o.value !== "")
+    .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+    .reverse();
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function filterToTwoYears(obs) {
+  const now = new Date();
+  const cutoff = (now.getFullYear() - 1) + '-01-01';
+  return obs.filter(d => d.date >= cutoff);
+}
+
+async function fetchWithProxy(url) {
+  const proxies = [
+    'https://corsproxy.io/?' + encodeURIComponent(url),
+    'https://api.allorigins.win/get?url=' + encodeURIComponent(url),
+    'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url),
+  ];
+  for (const p of proxies) {
+    try {
+      const res = await fetch(p);
+      if (!res.ok) continue;
+      const raw = await res.json();
+      return raw.contents ? JSON.parse(raw.contents) : raw;
+    } catch(_) { continue; }
+  }
+  throw new Error('all proxies failed for: ' + url);
+}
+
+async function fetchFRED(seriesId, apiKey, limit = 30) {
+  const url = 'https://api.stlouisfed.org/fred/series/observations' +
+    '?series_id=' + seriesId +
+    '&api_key=' + apiKey +
+    '&file_type=json&sort_order=desc&limit=' + limit;
+  const j = await fetchWithProxy(url);
+  return parseFREDJson(j);
+}
+
+// ─── YAHOO FINANCE FETCH ──────────────────────────────────
+async function fetchMarket(symbol) {
+  const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' +
+    symbol +
+    '?range=2y&interval=1d&events=history';
+  const j = await fetchWithProxy(yahooUrl);
+  const result = j.chart.result[0];
+  const closes = result.indicators.quote[0].close;
+  return result.timestamp
+    .map((t, i) => ({ date: new Date(t * 1000).toISOString().slice(0, 10), value: closes[i] }))
+    .filter(d => d.value != null);
+}
+
+// ─── CHART HELPERS ────────────────────────────────────────
+Chart.defaults.color = '#5a7a94';
+Chart.defaults.font.family = "'Space Mono', monospace";
+Chart.defaults.font.size = 10;
+
+function makeLineChart(canvasId, labels, data, color, fill = true) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if (charts[canvasId]) charts[canvasId].destroy();
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+  gradient.addColorStop(0, color + '33');
+  gradient.addColorStop(1, color + '00');
+
+  charts[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: color,
+        borderWidth: 1.5,
+        backgroundColor: fill ? gradient : 'transparent',
+        fill,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: color,
+        pointHoverBorderColor: '#080c10',
+        pointHoverBorderWidth: 2,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 800, easing: 'easeInOutQuart' },
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: true,
+          backgroundColor: '#0d1117',
+          borderColor: color,
+          borderWidth: 1,
+          titleColor: '#5a7a94',
+          bodyColor: '#e8edf2',
+          padding: 10,
+          displayColors: false,
+          titleFont: { family: "'Space Mono', monospace", size: 10 },
+          bodyFont: { family: "'Syne', sans-serif", size: 15, weight: '700' },
+          callbacks: {
+            title: items => items[0].label,
+            label: item => ' ' + Number(item.parsed.y).toLocaleString(undefined, { maximumFractionDigits: 2 })
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(30,45,61,0.6)', drawBorder: false },
+          ticks: { maxTicksLimit: 6, maxRotation: 0 }
+        },
+        y: {
+          grid: { color: 'rgba(30,45,61,0.6)', drawBorder: false },
+          ticks: { maxTicksLimit: 5 },
+          position: 'right'
+        }
+      }
+    }
+  });
+}
+
+function makeSparkline(canvasId, data, color) {
+  const ctx = document.getElementById(canvasId)?.getContext('2d');
+  if (!ctx) return;
+  if (sparklines[canvasId]) sparklines[canvasId].destroy();
+  sparklines[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map((_, i) => i),
+      datasets: [{ data: data.map(d => d.value), borderColor: color, borderWidth: 1.5, backgroundColor: 'transparent', fill: false, pointRadius: 0, tension: 0.4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 600 },
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: { x: { display: false }, y: { display: false } }
+    }
+  });
+}
+
+// ─── UPDATE KPI CARD ─────────────────────────────────────
+function updateCard(name, rawObs) {
+  const obs = filterToTwoYears(rawObs);
+  if (obs.length < 2) return;
+  const cfg = FRED_SERIES[name];
+  const latest = obs[obs.length - 1];
+  const prior = obs[obs.length - 2];
+  const change = latest.value - prior.value;
+  const pct = (change / Math.abs(prior.value)) * 100;
+  const pos = change >= 0;
+
+  const valEl = document.getElementById(`val-${name}`);
+  const chgEl = document.getElementById(`chg-${name}`);
+  const dateEl = document.getElementById(`date-${name}`);
+
+  valEl.classList.remove('loading-text');
+  valEl.innerHTML = `${latest.value.toLocaleString(undefined, { maximumFractionDigits: cfg.decimals })}<span class="kpi-unit">${cfg.unit}</span>`;
+  chgEl.className = `kpi-change ${pos ? 'pos' : 'neg'}`;
+  chgEl.textContent = `${pos ? '▲' : '▼'} ${Math.abs(change).toLocaleString(undefined, { maximumFractionDigits: cfg.decimals })} (${pct.toFixed(2)}%)`;
+  dateEl.textContent = `As of ${latest.date} vs ${prior.date}`;
+
+  const sparkSlice = obs;
+  const sparkColor = name === 'Unemployment' ? '#ff6b35' : name === 'M2' || name === '10Y_Yield' ? '#ffd700' : '#00d4ff';
+  makeSparkline(`spark-${name}`, sparkSlice, sparkColor);
+  const rangeEl = document.getElementById('spark-range-' + name);
+  if (rangeEl && sparkSlice.length > 1) {
+    rangeEl.textContent = sparkSlice[0].date + ' — ' + sparkSlice[sparkSlice.length - 1].date;
+  }
+}
+
+// ─── UPDATE TABLE ─────────────────────────────────────────
+
+
+// ─── UPDATE TICKER ────────────────────────────────────────
+function updateTicker(allData, marketData) {
+  const items = [];
+
+  for (const [name, obs] of Object.entries(allData)) {
+    if (!obs || obs.length < 2) continue;
+    const cfg = FRED_SERIES[name];
+    const latest = obs[obs.length - 1];
+    const prior = obs[obs.length - 2];
+    const pct = ((latest.value - prior.value) / Math.abs(prior.value) * 100).toFixed(2);
+    const pos = pct >= 0;
+    items.push({ name: cfg.id, val: latest.value.toFixed(cfg.decimals) + cfg.unit, chg: `${pos?'+':''}${pct}%`, pos });
+  }
+
+  for (const [sym, d] of Object.entries(marketData)) {
+    if (!d || d.length < 2) continue;
+    const latest = d[d.length - 1];
+    const prior = d[d.length - 2];
+    const pct = ((latest.value - prior.value) / Math.abs(prior.value) * 100).toFixed(2);
+    const pos = pct >= 0;
+    items.push({ name: sym === '^GSPC' ? 'S&P 500' : sym === 'CL=F' ? 'WTI' : 'DXY', val: latest.value.toFixed(2), chg: `${pos?'+':''}${pct}%`, pos });
+  }
+
+  // Duplicate for seamless scroll
+  const html = [...items, ...items].map(it => `
+    <div class="ticker-item">
+      <span class="t-name">${it.name}</span>
+      <span class="t-val">${it.val}</span>
+      <span class="t-chg ${it.pos ? 'pos' : 'neg'}">${it.chg}</span>
+    </div>
+  `).join('');
+
+  const scroller = document.getElementById('tickerScroll');
+  if (html) scroller.innerHTML = html;
+}
+
+// ─── MAIN FETCH ───────────────────────────────────────────
+async function fetchAll() {
+  const btn = document.getElementById('refreshBtn');
+  const apiKey = '8eb474280a02991313279b06c726bba4';
+  const errEl = document.getElementById('errorMsg');
+
+  btn.classList.add('loading');
+  btn.textContent = '⟳ Loading…';
+  errEl.style.display = 'none';
+
+  const allFredData = {};
+  const marketData = {};
+  const errors = [];
+
+  // FRED — fetch all series in parallel, proxy fallback per series
+  if (apiKey) {
+    const fredNames = Object.keys(FRED_SERIES);
+    for (let i = 0; i < fredNames.length; i++) {
+      if (i > 0) await sleep(300);
+      const name = fredNames[i];
+      try {
+        const obs = await fetchFRED(FRED_SERIES[name].id, apiKey, 30);
+        allFredData[name] = obs;
+        updateCard(name, obs);
+      } catch(e) {
+        errors.push('FRED ' + FRED_SERIES[name].id + ': ' + e.message);
+        const el = document.getElementById('val-' + name);
+        if (el) { el.textContent = 'Error'; el.classList.add('loading-text'); }
+      }
+    }
+  }
+
+  // FRED FULL CHARTS — Fed Funds Rate + Yield Spread
+  const fredChartEntries = Object.entries(FRED_CHARTS);
+  for (let i = 0; i < fredChartEntries.length; i++) {
+    if (i > 0) await sleep(300);
+    const [key, cfg] = fredChartEntries[i];
+    try {
+      const raw = await fetchFRED(cfg.id, '8eb474280a02991313279b06c726bba4', 30);
+      const obs = filterToTwoYears(raw);
+      if (obs.length < 2) continue;
+      const latest = obs[obs.length - 1];
+      const prior = obs[obs.length - 2];
+      const change = latest.value - prior.value;
+      const pos = change >= 0;
+      const valId = key === 'FedFunds' ? 'fedfunds-val' : 'spread-val';
+      const chgId = key === 'FedFunds' ? 'fedfunds-chg' : 'spread-chg';
+      const canvasId = key === 'FedFunds' ? 'chartFedFunds' : 'chartSpread';
+      document.getElementById(valId).textContent = latest.value.toFixed(2) + cfg.unit;
+      const chgEl = document.getElementById(chgId);
+      chgEl.textContent = (pos ? '+' : '') + change.toFixed(2) + cfg.unit + ' vs ' + prior.date;
+      chgEl.style.color = key === 'Spread'
+        ? (latest.value < 0 ? 'var(--red)' : 'var(--green)')
+        : (pos ? 'var(--red)' : 'var(--green)'); // rate up = tighter = bad
+      // Zero line for spread chart
+      const datasets = [{
+        data: obs.map(d => d.value),
+        borderColor: cfg.color,
+        borderWidth: 1.5,
+        backgroundColor: obs.map(d => d.value < 0 ? 'rgba(255,59,92,0.12)' : 'rgba(0,255,157,0.06)'),
+        fill: key === 'Spread' ? 'origin' : true,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: cfg.color,
+        tension: 0.3
+      }];
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      if (charts[canvasId]) charts[canvasId].destroy();
+      charts[canvasId] = new Chart(ctx, {
+        type: 'line',
+        data: { labels: obs.map(d => d.date), datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          animation: { duration: 800 },
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0d1117', borderColor: cfg.color, borderWidth: 1,
+              titleColor: '#5a7a94', bodyColor: '#e8edf2', padding: 10, displayColors: false,
+              titleFont: { family: "'Space Mono', monospace", size: 10 },
+              bodyFont: { family: "'Syne', sans-serif", size: 15, weight: '700' },
+              callbacks: {
+                title: items => items[0].label,
+                label: item => ' ' + Number(item.parsed.y).toFixed(2) + cfg.unit
+              }
+            }
+          },
+          scales: {
+            x: { grid: { color: 'rgba(30,45,61,0.6)' }, ticks: { maxTicksLimit: 6, maxRotation: 0 } },
+            y: {
+              grid: { color: 'rgba(30,45,61,0.6)' }, ticks: { maxTicksLimit: 5 }, position: 'right',
+              ...(key === 'Spread' ? { min: Math.min(...obs.map(d=>d.value)) - 0.2 } : {})
+            }
+          }
+        }
+      });
+    } catch(e) {
+      errors.push(cfg.label + ': ' + e.message);
+    }
+  }
+
+  // MARKET DATA — Yahoo Finance via proxy, fetched sequentially to avoid rate limits
+  const marketSymbols = ['^GSPC', 'CL=F', 'DX-Y.NYB', '^VIX'];
+  for (let i = 0; i < marketSymbols.length; i++) {
+    if (i > 0) await sleep(600); // stagger requests so proxy doesn't rate limit
+    const sym = marketSymbols[i];
+    const cfg = MARKET[sym];
+    try {
+      const obs = await fetchMarket(sym);
+      marketData[sym] = obs;
+      if (obs.length > 1) {
+        const latest = obs[obs.length - 1];
+        const prior = obs[obs.length - 2];
+        const pct = ((latest.value - prior.value) / Math.abs(prior.value) * 100);
+        const pos = pct >= 0;
+        document.getElementById(cfg.valId).textContent = latest.value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        const chgEl = document.getElementById(cfg.chgId);
+        chgEl.textContent = (pos ? '+' : '') + pct.toFixed(2) + '%';
+        chgEl.style.color = pos ? 'var(--green)' : 'var(--red)';
+        makeLineChart(cfg.canvasId, obs.map(d => d.date), obs.map(d => d.value), cfg.color);
+      }
+    } catch(e) {
+      errors.push('Market data (' + cfg.label + '): ' + e.message);
+      document.getElementById(cfg.valId).textContent = 'N/A';
+      document.getElementById(cfg.chgId).textContent = '–';
+    }
+  }
+
+  updateTicker(allFredData, marketData);
+
+  const now = new Date();
+  const ts = now.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  document.getElementById('last-updated').textContent = `Updated ${ts}`;
+  document.getElementById('footer-ts').textContent = `Last fetch: ${ts}`;
+
+  if (errors.length > 0) {
+    errEl.innerHTML = errors.map(e => '⚠ ' + e).join('<br>');
+    errEl.style.display = 'block';
+  }
+
+  btn.classList.remove('loading');
+  btn.textContent = '↻ Refresh';
+
+  // Schedule next auto-refresh
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(fetchAll, REFRESH_INTERVAL);
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  fetchAll();
+});
+</script>
+
+<!-- bottom spacer for ticker tape -->
+<div style="height:36px"></div>
+</body>
+</html>
