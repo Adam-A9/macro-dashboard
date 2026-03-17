@@ -198,6 +198,69 @@ function _finishFetch(errors) {
   refreshTimer = setTimeout(fetchAll, REFRESH_INTERVAL);
 }
 
+// ─── EXPAND MODAL ───────────────────────────────────────
+function openModal(name) {
+  const cfg = FRED_SERIES[name];
+  if (!cfg) return;
+  const obs = seriesRawData[name];
+  if (!obs || obs.length < 2) return;
+
+  const modal   = document.getElementById('kpi-modal');
+  const overlay = document.getElementById('kpi-modal-overlay');
+  if (!modal || !overlay) return;
+
+  // Header info
+  document.getElementById('modal-title').textContent = cfg.label;
+  document.getElementById('modal-series').textContent = cfg.id;
+  document.getElementById('modal-freq').textContent = cfg.freq;
+
+  const latest = obs[obs.length - 1];
+  const prior  = obs[obs.length - 2];
+  const change = latest.value - prior.value;
+  const pct    = (change / Math.abs(prior.value)) * 100;
+  const pos    = change >= 0;
+
+  document.getElementById('modal-value').innerHTML =
+    latest.value.toLocaleString(undefined, { maximumFractionDigits: cfg.decimals }) +
+    '<span style="font-size:16px;color:var(--muted);font-weight:400;margin-left:4px;">' + cfg.unit + '</span>';
+
+  const chgEl = document.getElementById('modal-change');
+  chgEl.textContent = (pos ? '▲' : '▼') + ' ' +
+    Math.abs(change).toLocaleString(undefined, { maximumFractionDigits: cfg.decimals }) +
+    ' (' + pct.toFixed(2) + '%)';
+  chgEl.className = 'kpi-change ' + (pos ? 'pos' : 'neg');
+
+  // Full chart
+  makeModalChart('modal-chart-canvas', obs.map(d => d.date), obs.map(d => d.value), cfg.bar || '#00d4ff', cfg.unit);
+
+  // Enlarged heatmap table
+  const tableWrap = document.getElementById('modal-table');
+  const srcTable = document.getElementById('mini-table-' + name);
+  tableWrap.innerHTML = srcTable ? srcTable.innerHTML : '';
+
+  // Recession legend — show only if recession bands overlap
+  const firstDate = obs[0].date, lastDate = obs[obs.length - 1].date;
+  const hasRecession = NBER_RECESSIONS.some(([s, e]) => s <= lastDate && e >= firstDate);
+  document.getElementById('modal-recession-legend').style.display = hasRecession ? 'flex' : 'none';
+
+  // Description
+  document.getElementById('modal-desc').textContent = cfg.desc || '';
+
+  // Show
+  overlay.classList.add('active');
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  const modal   = document.getElementById('kpi-modal');
+  const overlay = document.getElementById('kpi-modal-overlay');
+  if (modal) modal.classList.remove('active');
+  if (overlay) overlay.classList.remove('active');
+  document.body.style.overflow = '';
+  if (modalChart) { modalChart.destroy(); modalChart = null; }
+}
+
 // ─── PAGE INIT ───────────────────────────────────────────
 // Called on DOMContentLoaded. Populates tooltips and kicks off the first fetch.
 // Also calls fetchCalendar() if it is defined (only loaded on index.html).
@@ -211,6 +274,26 @@ function initPage() {
     icon.addEventListener('mouseenter', () => card.classList.add('show-tip'));
     icon.addEventListener('mouseleave', () => card.classList.remove('show-tip'));
   });
+  // Click-to-expand modal on KPI cards
+  document.querySelectorAll('.kpi-card').forEach(card => {
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', (e) => {
+      // Don't open modal if clicking the info icon
+      if (e.target.closest('.kpi-info')) return;
+      const name = card.id.replace('card-', '');
+      openModal(name);
+    });
+  });
+
+  // Modal close handlers
+  const overlay = document.getElementById('kpi-modal-overlay');
+  const closeBtn = document.getElementById('modal-close-btn');
+  if (overlay) overlay.addEventListener('click', closeModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
+
   fetchAll();
   if (typeof fetchCalendar === 'function') fetchCalendar();
 }
