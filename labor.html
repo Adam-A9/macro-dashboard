@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjEyIiBmaWxsPSIjMDgwYzEwIi8+PHBvbHlsaW5lIHBvaW50cz0iMCw2MCAyMCw2MCAzNSw2MCA0NSwxNSA1NSw4NSA2NSw2MCA4MCw2MCAxMDAsNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwZDRmZiIgc3Ryb2tlLXdpZHRoPSI3IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MACRO — Economic Overview Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #080c10;
+    --surface: #0d1117;
+    --surface2: #131a22;
+    --border: #1e2d3d;
+    --border2: #243447;
+    --accent: #00d4ff;
+    --accent2: #00ff9d;
+    --warn: #ff6b35;
+    --red: #ff3b5c;
+    --green: #00ff9d;
+    --gold: #ffd700;
+    --text: #e8edf2;
+    --muted: #d8eaf5;
+    --muted2: #c8dff0;
+    --grid: rgba(0,212,255,0.04);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 39px, var(--grid) 39px, var(--grid) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, var(--grid) 39px, var(--grid) 40px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(8,12,16,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+  }
+
+  .logo {
+    font-family: 'DM Mono', monospace;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--muted); font-weight: 400; }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent2);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,255,157,0.4); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(0,255,157,0); }
+  }
+
+  #last-updated {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+  }
+
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 6px 12px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .refresh-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .refresh-btn.loading { opacity: 0.5; cursor: not-allowed; }
+
+  /* MAIN LAYOUT */
+  .main {
+    position: relative;
+    z-index: 1;
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto auto;
+    gap: 12px;
+  }
+
+
+  /* KPI CARDS */
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+    animation: fadeIn 0.5s ease forwards;
+    opacity: 0;
+  }
+  .kpi-card:hover { border-color: var(--border2); }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .kpi-card[data-freq="dod"]::before { background: linear-gradient(90deg, #00d4ff, transparent); }
+  .kpi-card[data-freq="wow"]::before { background: linear-gradient(90deg, #a78bfa, transparent); }
+  .kpi-card[data-freq="mom"]::before { background: linear-gradient(90deg, #00ff9d, transparent); }
+  .kpi-card[data-freq="qoq"]::before { background: linear-gradient(90deg, #ffd700, transparent); }
+
+  @keyframes fadeIn {
+    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(8px); }
+  }
+
+  .kpi-tooltip {
+    position: absolute;
+    inset: 0;
+    background: rgba(13,17,23,0.97);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    padding: 14px;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    white-space: normal;
+    display: flex;
+    align-items: center;
+  }
+  .kpi-card.show-tip .kpi-tooltip {
+    opacity: 1;
+  }
+  .kpi-info {
+    cursor: help;
+    color: var(--accent);
+    font-size: 9px;
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    width: 13px;
+    height: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4px;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+  .kpi-label {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .kpi-series-id {
+    background: var(--surface2);
+    color: var(--muted2);
+    font-size: 8px;
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+  }
+  .kpi-value {
+    font-family: 'DM Mono', monospace;
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1;
+  }
+  .kpi-value.loading-text { font-size: 16px; color: var(--muted); animation: blink 1.2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .kpi-unit { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 3px; }
+  .kpi-change {
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .kpi-change.pos { color: var(--green); }
+  .kpi-change.neg { color: var(--red); }
+  .kpi-change.neutral { color: var(--muted); }
+  .kpi-date { color: var(--muted2); font-size: 9px; margin-top: 6px; }
+  .revision-tag {
+    display: inline-block;
+    margin-top: 5px;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    border: 1px solid var(--border2);
+    font-family: 'Space Mono', monospace;
+  }
+  .revision-tag.up { color: #00ff9d; border-color: #00ff9d33; }
+  .revision-tag.down { color: #ff3b5c; border-color: #ff3b5c33; }
+  .revision-tag.flat { color: var(--muted); }
+
+  .sparkline-wrap {
+    margin-top: 10px;
+    height: 52px;
+  }
+  .mini-table-wrap {
+    margin-top: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .mini-table-wrap::-webkit-scrollbar { display: none; }
+  .mini-table {
+    border-collapse: collapse;
+    white-space: nowrap;
+    width: 100%;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+  }
+  .mini-table th {
+    color: #e8edf2;
+    font-weight: 400;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+  .mini-table td {
+    color: #ffffff;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    text-align: center;
+    letter-spacing: 0.03em;
+  }
+
+  /* CHART PANELS */
+  .chart-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+    animation: fadeIn 0.6s ease forwards;
+    opacity: 0;
+  }
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+  .panel-title {
+    font-family: 'DM Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .panel-sub {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .panel-badge {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    padding: 2px 6px;
+    border: 1px solid var(--border2);
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .chart-container { position: relative; }
+
+
+  /* FOOTER */
+  .footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--muted2);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ERROR */
+  .error-msg {
+    background: rgba(255,59,92,0.08);
+    border: 1px solid rgba(255,59,92,0.3);
+    color: var(--red);
+    padding: 8px 12px;
+    font-size: 11px;
+    grid-column: 1/-1;
+    display: none;
+  }
+
+  /* SECTION LABEL */
+  .section-label {
+    grid-column: 1/-1;
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 4px 0 0;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+
+  canvas { display: block; }
+
+  /* Staggered animation delays */
+  .kpi-card:nth-child(1) { animation-delay: 0.05s; }
+  .kpi-card:nth-child(2) { animation-delay: 0.10s; }
+  .kpi-card:nth-child(3) { animation-delay: 0.15s; }
+  .kpi-card:nth-child(4) { animation-delay: 0.20s; }
+  .kpi-card:nth-child(5) { animation-delay: 0.25s; }
+  .kpi-card:nth-child(6) { animation-delay: 0.30s; }
+  .kpi-card:nth-child(7) { animation-delay: 0.35s; }
+  .kpi-card:nth-child(8) { animation-delay: 0.40s; }
+
+  /* ── MOBILE RESPONSIVE ────────────────────────────────── */
+  @media (max-width: 768px) {
+
+    /* Header */
+    .header {
+      padding: 0 12px;
+      height: auto;
+      min-height: 52px;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+    .logo { font-size: 14px; }
+    .header-right { gap: 12px; flex-wrap: wrap; }
+    #last-updated { display: none; }
+
+    /* Main grid → single column */
+    .main {
+      grid-template-columns: 1fr;
+      padding: 12px;
+      gap: 10px;
+    }
+
+    /* KPI cards — full width, more compact */
+    .kpi-card {
+      padding: 12px;
+    }
+    .kpi-value { font-size: 22px !important; }
+    .sparkline-wrap { height: 44px; }
+    .mini-table { font-size: 9px; }
+    .mini-table th, .mini-table td { padding: 2px 4px; }
+
+    /* Section labels */
+    .section-label { grid-column: 1 / -1; }
+
+    /* Market + FRED charts → single column */
+    div[style*="grid-template-columns:1fr 1fr"] {
+      grid-template-columns: 1fr !important;
+    }
+
+    /* Chart panels */
+    .chart-panel { padding: 12px; }
+    .panel-title { font-size: 11px; }
+
+    /* Tooltip overlay — slightly smaller text on mobile */
+    .kpi-tooltip { font-size: 10px; padding: 10px; }
+
+    /* Footer */
+    .footer {
+      flex-direction: column;
+      gap: 4px;
+      text-align: center;
+      padding: 10px 12px;
+    }
+
+    /* Error msg */
+    .error-msg { font-size: 10px; }
+
+    /* Refresh button */
+    .refresh-btn { padding: 5px 10px; font-size: 9px; }
+  }
+
+  @media (max-width: 480px) {
+    .logo span { display: none; }
+    .kpi-value { font-size: 20px !important; }
+    .live-badge span:last-child { display: none; }
+  }
+
+  /* ── ECONOMIC CALENDAR ─────────────────────────────────── */
+  .calendar-section {
+    position: relative;
+    z-index: 1;
+    padding: 0 24px 20px;
+  }
+  .calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .calendar-title {
+    color: var(--accent);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .calendar-range {
+    color: var(--muted);
+    font-size: 9px;
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: 80px 52px 1fr auto;
+    border: 1px solid var(--border);
+  }
+  .cal-date {
+    background: var(--surface);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .cal-date-day { color: var(--text); font-size: 10px; font-weight: bold; }
+  .cal-date-time { color: var(--muted); font-size: 9px; }
+  .cal-event {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cal-bar {
+    width: 3px;
+    height: 28px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .cal-name { color: var(--text); font-size: 11px; }
+  .cal-sub { color: var(--muted); font-size: 9px; margin-top: 1px; }
+  .cal-days {
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .cal-days-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+  }
+  .cal-days-label {
+    color: var(--muted);
+    font-size: 8px;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+  .cal-prev {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .cal-prev-label { color: var(--muted); font-size: 9px; }
+  .cal-prev-val { color: var(--text); font-size: 10px; margin-top: 1px; text-align: right; }
+  .cal-fomc { background: #131a22; }
+  .cal-impact {
+    background: rgba(255,59,92,0.08);
+    border: 1px solid rgba(255,59,92,0.25);
+    color: var(--red);
+    font-size: 9px;
+    padding: 2px 6px;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .cal-grid-last .cal-date,
+  .cal-grid-last .cal-event,
+  .cal-grid-last .cal-prev { border-bottom: none; }
+  .cal-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .cal-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--muted);
+    font-size: 9px;
+  }
+  .cal-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .cal-empty {
+    grid-column: 1/-1;
+    padding: 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  @media (max-width: 768px) {
+    .calendar-section { padding: 0 12px 16px; }
+    .calendar-grid { grid-template-columns: 65px 1fr; }
+    .cal-prev { display: none; }
+    .cal-days { display: none; }
+  }
+
+  /* ── NAV BAR ─────────────────────────────────────────────── */
+  .nav-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    gap: 0;
+    position: sticky;
+    top: 52px;
+    z-index: 99;
+  }
+  .nav-link {
+    color: var(--muted);
+    text-decoration: none;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .nav-link:hover { color: var(--text); }
+  .nav-link.active { color: var(--accent); border-bottom-color: var(--accent); }
+  @media (max-width: 768px) {
+    .nav-bar { overflow-x: auto; top: auto; }
+    .nav-link { padding: 8px 12px; font-size: 9px; }
+  }
+</style>
+</head>
+<style>
+  :root {
+    --bg: #080c10;
+    --surface: #0d1117;
+    --surface2: #131a22;
+    --border: #1e2d3d;
+    --border2: #243447;
+    --accent: #00d4ff;
+    --accent2: #00ff9d;
+    --warn: #ff6b35;
+    --red: #ff3b5c;
+    --green: #00ff9d;
+    --gold: #ffd700;
+    --text: #e8edf2;
+    --muted: #d8eaf5;
+    --muted2: #c8dff0;
+    --grid: rgba(0,212,255,0.04);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 39px, var(--grid) 39px, var(--grid) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, var(--grid) 39px, var(--grid) 40px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(8,12,16,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+  }
+
+  .logo {
+    font-family: 'DM Mono', monospace;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--muted); font-weight: 400; }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent2);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,255,157,0.4); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(0,255,157,0); }
+  }
+
+  #last-updated {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+  }
+
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 6px 12px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .refresh-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .refresh-btn.loading { opacity: 0.5; cursor: not-allowed; }
+
+  /* MAIN LAYOUT */
+  .main {
+    position: relative;
+    z-index: 1;
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto auto;
+    gap: 12px;
+  }
+
+
+  /* KPI CARDS */
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+    animation: fadeIn 0.5s ease forwards;
+    opacity: 0;
+  }
+  .kpi-card:hover { border-color: var(--border2); }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .kpi-card[data-freq="dod"]::before { background: linear-gradient(90deg, #00d4ff, transparent); }
+  .kpi-card[data-freq="wow"]::before { background: linear-gradient(90deg, #a78bfa, transparent); }
+  .kpi-card[data-freq="mom"]::before { background: linear-gradient(90deg, #00ff9d, transparent); }
+  .kpi-card[data-freq="qoq"]::before { background: linear-gradient(90deg, #ffd700, transparent); }
+
+  @keyframes fadeIn {
+    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(8px); }
+  }
+
+  .kpi-tooltip {
+    position: absolute;
+    inset: 0;
+    background: rgba(13,17,23,0.97);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    padding: 14px;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    white-space: normal;
+    display: flex;
+    align-items: center;
+  }
+  .kpi-card.show-tip .kpi-tooltip {
+    opacity: 1;
+  }
+  .kpi-info {
+    cursor: help;
+    color: var(--accent);
+    font-size: 9px;
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    width: 13px;
+    height: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4px;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+  .kpi-label {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .kpi-series-id {
+    background: var(--surface2);
+    color: var(--muted2);
+    font-size: 8px;
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+  }
+  .kpi-value {
+    font-family: 'DM Mono', monospace;
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1;
+  }
+  .kpi-value.loading-text { font-size: 16px; color: var(--muted); animation: blink 1.2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .kpi-unit { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 3px; }
+  .kpi-change {
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .kpi-change.pos { color: var(--green); }
+  .kpi-change.neg { color: var(--red); }
+  .kpi-change.neutral { color: var(--muted); }
+  .kpi-date { color: var(--muted2); font-size: 9px; margin-top: 6px; }
+  .revision-tag {
+    display: inline-block;
+    margin-top: 5px;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    border: 1px solid var(--border2);
+    font-family: 'Space Mono', monospace;
+  }
+  .revision-tag.up { color: #00ff9d; border-color: #00ff9d33; }
+  .revision-tag.down { color: #ff3b5c; border-color: #ff3b5c33; }
+  .revision-tag.flat { color: var(--muted); }
+
+  .sparkline-wrap {
+    margin-top: 10px;
+    height: 52px;
+  }
+  .mini-table-wrap {
+    margin-top: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .mini-table-wrap::-webkit-scrollbar { display: none; }
+  .mini-table {
+    border-collapse: collapse;
+    white-space: nowrap;
+    width: 100%;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+  }
+  .mini-table th {
+    color: #e8edf2;
+    font-weight: 400;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+  .mini-table td {
+    color: #ffffff;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    text-align: center;
+    letter-spacing: 0.03em;
+  }
+
+  /* CHART PANELS */
+  .chart-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+    animation: fadeIn 0.6s ease forwards;
+    opacity: 0;
+  }
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+  .panel-title {
+    font-family: 'DM Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .panel-sub {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .panel-badge {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    padding: 2px 6px;
+    border: 1px solid var(--border2);
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .chart-container { position: relative; }
+
+
+  /* FOOTER */
+  .footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--muted2);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ERROR */
+  .error-msg {
+    background: rgba(255,59,92,0.08);
+    border: 1px solid rgba(255,59,92,0.3);
+    color: var(--red);
+    padding: 8px 12px;
+    font-size: 11px;
+    grid-column: 1/-1;
+    display: none;
+  }
+
+  /* SECTION LABEL */
+  .section-label {
+    grid-column: 1/-1;
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 4px 0 0;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+
+  canvas { display: block; }
+
+  /* Staggered animation delays */
+  .kpi-card:nth-child(1) { animation-delay: 0.05s; }
+  .kpi-card:nth-child(2) { animation-delay: 0.10s; }
+  .kpi-card:nth-child(3) { animation-delay: 0.15s; }
+  .kpi-card:nth-child(4) { animation-delay: 0.20s; }
+  .kpi-card:nth-child(5) { animation-delay: 0.25s; }
+  .kpi-card:nth-child(6) { animation-delay: 0.30s; }
+  .kpi-card:nth-child(7) { animation-delay: 0.35s; }
+  .kpi-card:nth-child(8) { animation-delay: 0.40s; }
+
+  /* ── MOBILE RESPONSIVE ────────────────────────────────── */
+  @media (max-width: 768px) {
+
+    /* Header */
+    .header {
+      padding: 0 12px;
+      height: auto;
+      min-height: 52px;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+    .logo { font-size: 14px; }
+    .header-right { gap: 12px; flex-wrap: wrap; }
+    #last-updated { display: none; }
+
+    /* Main grid → single column */
+    .main {
+      grid-template-columns: 1fr;
+      padding: 12px;
+      gap: 10px;
+    }
+
+    /* KPI cards — full width, more compact */
+    .kpi-card {
+      padding: 12px;
+    }
+    .kpi-value { font-size: 22px !important; }
+    .sparkline-wrap { height: 44px; }
+    .mini-table { font-size: 9px; }
+    .mini-table th, .mini-table td { padding: 2px 4px; }
+
+    /* Section labels */
+    .section-label { grid-column: 1 / -1; }
+
+    /* Market + FRED charts → single column */
+    div[style*="grid-template-columns:1fr 1fr"] {
+      grid-template-columns: 1fr !important;
+    }
+
+    /* Chart panels */
+    .chart-panel { padding: 12px; }
+    .panel-title { font-size: 11px; }
+
+    /* Tooltip overlay — slightly smaller text on mobile */
+    .kpi-tooltip { font-size: 10px; padding: 10px; }
+
+    /* Footer */
+    .footer {
+      flex-direction: column;
+      gap: 4px;
+      text-align: center;
+      padding: 10px 12px;
+    }
+
+    /* Error msg */
+    .error-msg { font-size: 10px; }
+
+    /* Refresh button */
+    .refresh-btn { padding: 5px 10px; font-size: 9px; }
+  }
+
+  @media (max-width: 480px) {
+    .logo span { display: none; }
+    .kpi-value { font-size: 20px !important; }
+    .live-badge span:last-child { display: none; }
+  }
+
+  /* ── ECONOMIC CALENDAR ─────────────────────────────────── */
+  .calendar-section {
+    position: relative;
+    z-index: 1;
+    padding: 0 24px 20px;
+  }
+  .calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .calendar-title {
+    color: var(--accent);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .calendar-range {
+    color: var(--muted);
+    font-size: 9px;
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: 80px 52px 1fr auto;
+    border: 1px solid var(--border);
+  }
+  .cal-date {
+    background: var(--surface);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .cal-date-day { color: var(--text); font-size: 10px; font-weight: bold; }
+  .cal-date-time { color: var(--muted); font-size: 9px; }
+  .cal-event {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cal-bar {
+    width: 3px;
+    height: 28px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .cal-name { color: var(--text); font-size: 11px; }
+  .cal-sub { color: var(--muted); font-size: 9px; margin-top: 1px; }
+  .cal-days {
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .cal-days-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+  }
+  .cal-days-label {
+    color: var(--muted);
+    font-size: 8px;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+  .cal-prev {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .cal-prev-label { color: var(--muted); font-size: 9px; }
+  .cal-prev-val { color: var(--text); font-size: 10px; margin-top: 1px; text-align: right; }
+  .cal-fomc { background: #131a22; }
+  .cal-impact {
+    background: rgba(255,59,92,0.08);
+    border: 1px solid rgba(255,59,92,0.25);
+    color: var(--red);
+    font-size: 9px;
+    padding: 2px 6px;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .cal-grid-last .cal-date,
+  .cal-grid-last .cal-event,
+  .cal-grid-last .cal-prev { border-bottom: none; }
+  .cal-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .cal-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--muted);
+    font-size: 9px;
+  }
+  .cal-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .cal-empty {
+    grid-column: 1/-1;
+    padding: 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  @media (max-width: 768px) {
+    .calendar-section { padding: 0 12px 16px; }
+    .calendar-grid { grid-template-columns: 65px 1fr; }
+    .cal-prev { display: none; }
+    .cal-days { display: none; }
+  }
+
+  /* ── NAV BAR ─────────────────────────────────────────────── */
+  .nav-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    gap: 0;
+    position: sticky;
+    top: 52px;
+    z-index: 99;
+  }
+  .nav-link {
+    color: var(--muted);
+    text-decoration: none;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .nav-link:hover { color: var(--text); }
+  .nav-link.active { color: var(--accent); border-bottom-color: var(--accent); }
+  @media (max-width: 768px) {
+    .nav-bar { overflow-x: auto; top: auto; }
+    .nav-link { padding: 8px 12px; font-size: 9px; }
+  }
+
+  .nav-bar { background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:0;position:sticky;top:52px;z-index:99; }
+  .nav-link { color:var(--muted);text-decoration:none;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;padding:10px 16px;border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap; }
+  .nav-link:hover { color:var(--text); }
+  .nav-link.active { color:var(--accent);border-bottom-color:var(--accent); }
+  @media(max-width:768px){.nav-bar{overflow-x:auto;top:auto;}.nav-link{padding:8px 12px;font-size:9px;}}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="logo">MACRO<span> // Labor Dashboard</span></div>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div>Auto-Refresh ON</div>
+    <span id="last-updated">–</span>
+    <button class="refresh-btn" id="refreshBtn" onclick="fetchAll()">↻ Refresh</button>
+  </div>
+</header>
+<nav class="nav-bar"><a href="index.html" class="nav-link">Macro</a><a href="inflation.html" class="nav-link">Inflation</a><a href="housing.html" class="nav-link">Housing</a><a href="labor.html" class="nav-link active">Labor</a><a href="markets.html" class="nav-link">Markets</a></nav>
+<main class="main">
+  <div class="error-msg" id="errorMsg"></div>
+  <div class="kpi-card" id="card-Unemployment" data-freq="mom">
+    <div class="kpi-label">Unemployment Rate <span class="kpi-series-id">UNRATE</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-Unemployment"></div>
+    <div class="kpi-value loading-text" id="val-Unemployment">Loading…</div>
+    <div class="kpi-change neutral" id="chg-Unemployment">–</div>
+    <div class="kpi-date" id="date-Unemployment">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-Unemployment"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-Unemployment"></div>
+  </div>
+  <div class="kpi-card" id="card-JoblessClaims" data-freq="wow">
+    <div class="kpi-label">Initial Jobless Claims <span class="kpi-series-id">ICSA</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-JoblessClaims"></div>
+    <div class="kpi-value loading-text" id="val-JoblessClaims">Loading…</div>
+    <div class="kpi-change neutral" id="chg-JoblessClaims">–</div>
+    <div class="kpi-date" id="date-JoblessClaims">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-JoblessClaims"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-JoblessClaims"></div>
+  </div>
+  <div class="kpi-card" id="card-ContClaims" data-freq="wow">
+    <div class="kpi-label">Continuing Claims <span class="kpi-series-id">CCSA</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-ContClaims"></div>
+    <div class="kpi-value loading-text" id="val-ContClaims">Loading…</div>
+    <div class="kpi-change neutral" id="chg-ContClaims">–</div>
+    <div class="kpi-date" id="date-ContClaims">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-ContClaims"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-ContClaims"></div>
+  </div>
+  <div class="kpi-card" id="card-LFPR" data-freq="mom">
+    <div class="kpi-label">Labor Force Participation <span class="kpi-series-id">CIVPART</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-LFPR"></div>
+    <div class="kpi-value loading-text" id="val-LFPR">Loading…</div>
+    <div class="kpi-change neutral" id="chg-LFPR">–</div>
+    <div class="kpi-date" id="date-LFPR">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-LFPR"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-LFPR"></div>
+  </div>
+  <div class="kpi-card" id="card-JOLTS" data-freq="mom">
+    <div class="kpi-label">Job Openings (JOLTS) <span class="kpi-series-id">JTSJOL</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-JOLTS"></div>
+    <div class="kpi-value loading-text" id="val-JOLTS">Loading…</div>
+    <div class="kpi-change neutral" id="chg-JOLTS">–</div>
+    <div class="kpi-date" id="date-JOLTS">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-JOLTS"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-JOLTS"></div>
+  </div>
+  <div class="kpi-card" id="card-AHE" data-freq="mom">
+    <div class="kpi-label">Avg Hourly Earnings <span class="kpi-series-id">CES0500000003</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-AHE"></div>
+    <div class="kpi-value loading-text" id="val-AHE">Loading…</div>
+    <div class="kpi-change neutral" id="chg-AHE">–</div>
+    <div class="kpi-date" id="date-AHE">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-AHE"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-AHE"></div>
+  </div>
+  <div class="kpi-card" id="card-Underemployment" data-freq="mom">
+    <div class="kpi-label">Underemployment U-6 <span class="kpi-series-id">U6RATE</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-Underemployment"></div>
+    <div class="kpi-value loading-text" id="val-Underemployment">Loading…</div>
+    <div class="kpi-change neutral" id="chg-Underemployment">–</div>
+    <div class="kpi-date" id="date-Underemployment">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-Underemployment"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-Underemployment"></div>
+  </div>
+  <div class="kpi-card" id="card-NFP" data-freq="mom">
+    <div class="kpi-label">Nonfarm Payrolls <span class="kpi-series-id">PAYEMS</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-NFP"></div>
+    <div class="kpi-value loading-text" id="val-NFP">Loading…</div>
+    <div class="kpi-change neutral" id="chg-NFP">–</div>
+    <div class="kpi-date" id="date-NFP">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-NFP"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-NFP"></div>
+  </div>
+  <div class="kpi-card" id="card-QuitRate" data-freq="mom">
+    <div class="kpi-label">Quit Rate <span class="kpi-series-id">JTSQUR</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-QuitRate"></div>
+    <div class="kpi-value loading-text" id="val-QuitRate">Loading…</div>
+    <div class="kpi-change neutral" id="chg-QuitRate">–</div>
+    <div class="kpi-date" id="date-QuitRate">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-QuitRate"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-QuitRate"></div>
+  </div>
+
+  <div class="section-label" style="grid-column:1/-1;">// Market Charts</div>
+  <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div class="chart-panel" style="animation-delay:0.5s;">
+      <div class="panel-header">
+        <div><div class="panel-title">Industrials ETF</div><div class="panel-sub">XLI · SPDR Industrials</div></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="xli-val" style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;">–</span>
+          <span id="xli-chg" style="font-size:11px;">–</span>
+        </div>
+      </div>
+      <div class="chart-container" style="height:150px"><canvas id="chartXLI"></canvas></div>
+    </div>
+    <div class="chart-panel" style="animation-delay:0.55s;">
+      <div class="panel-header">
+        <div><div class="panel-title">S&P 500</div><div class="panel-sub">SPX · Daily</div></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="spx-val" style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;">–</span>
+          <span id="spx-chg" style="font-size:11px;">–</span>
+        </div>
+      </div>
+      <div class="chart-container" style="height:150px"><canvas id="chartSPX"></canvas></div>
+    </div>
+  </div>
+</main>
+<footer class="footer">
+  <span>Data: Federal Reserve Bank of St. Louis (FRED) · Yahoo Finance</span>
+  <span id="footer-ts">–</span>
+</footer>
+<script>
+const FRED_API_KEY = '8eb474280a02991313279b06c726bba4';
+const REFRESH_INTERVAL = 15 * 60 * 1000;
+let charts = {}, sparklines = {}, refreshTimer;
+const seriesRawData = {};
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function filterToTwoYears(obs) {
+  const now = new Date();
+  const cutoff = (now.getFullYear() - 2) + '-01-01';
+  return obs.filter(d => d.date >= cutoff);
+}
+
+async function fetchWithProxy(url) {
+  const proxy = 'https://quiet-moon-b6d5.adamaun9.workers.dev/?url=' + encodeURIComponent(url);
+  const res = await fetch(proxy);
+  if (!res.ok) throw new Error('proxy failed: HTTP ' + res.status);
+  return await res.json();
+}
+
+async function fetchFRED(seriesId, apiKey, limit = 60) {
+  const url = 'https://api.stlouisfed.org/fred/series/observations' +
+    '?series_id=' + seriesId +
+    '&api_key=' + apiKey +
+    '&file_type=json&sort_order=desc&limit=' + limit;
+  const j = await fetchWithProxy(url);
+  return parseFREDJson(j);
+}
+
+// ─── YAHOO FINANCE FETCH ──────────────────────────────────
+async function fetchVintage(seriesId, apiKey, vintageDates) {
+  // ALFRED — fetch a specific vintage (data as it was on release date)
+  const url = 'https://api.stlouisfed.org/fred/series/observations' +
+    '?series_id=' + seriesId +
+    '&api_key=' + apiKey +
+    '&file_type=json&sort_order=desc&limit=5' +
+    '&vintage_dates=' + vintageDates.join(',');
+  const j = await fetchWithProxy(url);
+  if (!j.observations) return null;
+  const valid = j.observations.filter(o => o.value !== '.' && o.value !== '');
+  return valid.length > 0 ? parseFloat(valid[0].value) : null;
+}
+
+async function fetchMarket(symbol) {
+  const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' +
+    symbol.replace('^', '%5E') +
+    '?range=3y&interval=1d&events=history';
+  const j = await fetchWithProxy(yahooUrl);
+  if (!j.chart || !j.chart.result || !j.chart.result[0]) {
+    const err = j.chart?.error?.description || j['Error Message'] || 'no data returned';
+    throw new Error(symbol + ': ' + err);
+  }
+  const result = j.chart.result[0];
+  const closes = result.indicators.quote[0].close;
+  return result.timestamp
+    .map((t, i) => ({ date: new Date(t * 1000).toISOString().slice(0, 10), value: closes[i] }))
+    .filter(d => d.value != null);
+}
+
+// ─── CHART HELPERS ────────────────────────────────────────
+Chart.defaults.color = '#d8eaf5';
+Chart.defaults.font.family = "'Space Mono', monospace";
+Chart.defaults.font.size = 10;
+
+function makeLineChart(canvasId, labels, data, color, fill = true) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if (charts[canvasId]) charts[canvasId].destroy();
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+  gradient.addColorStop(0, color + '33');
+  gradient.addColorStop(1, color + '00');
+
+  charts[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: color,
+        borderWidth: 1.5,
+        backgroundColor: fill ? gradient : 'transparent',
+        fill,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: color,
+        pointHoverBorderColor: '#080c10',
+        pointHoverBorderWidth: 2,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 800, easing: 'easeInOutQuart' },
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: true,
+          backgroundColor: '#0d1117',
+          borderColor: color,
+          borderWidth: 1,
+          titleColor: '#d8eaf5',
+          bodyColor: '#e8edf2',
+          padding: 10,
+          displayColors: false,
+          titleFont: { family: "'Space Mono', monospace", size: 10 },
+          bodyFont: { family: "'DM Mono', monospace", size: 15, weight: '700' },
+          callbacks: {
+            title: items => items[0].label,
+            label: item => ' ' + Number(item.parsed.y).toLocaleString(undefined, { maximumFractionDigits: 2 })
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(30,45,61,0.6)', drawBorder: false },
+          ticks: { maxTicksLimit: 6, maxRotation: 0 }
+        },
+        y: {
+          grid: { color: 'rgba(30,45,61,0.6)', drawBorder: false },
+          ticks: { maxTicksLimit: 5 },
+          position: 'right'
+        }
+      }
+    }
+  });
+}
+
+function makeSparkline(canvasId, data, color) {
+  const ctx = document.getElementById(canvasId)?.getContext('2d');
+  if (!ctx) return;
+  if (sparklines[canvasId]) sparklines[canvasId].destroy();
+  // Show only first, middle, last date labels
+  const n = data.length;
+  const tickLabels = data.map(() => '');
+  sparklines[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: tickLabels,
+      datasets: [{ data: data.map(d => d.value), borderColor: color, borderWidth: 1.5, backgroundColor: 'transparent', fill: false, pointRadius: 0, tension: 0.4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 600 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: true,
+          backgroundColor: '#0d1117',
+          borderColor: color,
+          borderWidth: 1,
+          titleColor: '#d8eaf5',
+          bodyColor: '#e8edf2',
+          padding: 8,
+          displayColors: false,
+          titleFont: { family: "'Space Mono', monospace", size: 9 },
+          bodyFont: { family: "'DM Mono', monospace", size: 12, weight: '700' },
+          callbacks: {
+            title: items => data[items[0].dataIndex]?.date ?? '',
+            label: item => ' ' + Number(item.parsed.y).toLocaleString(undefined, { maximumFractionDigits: 2 })
+          }
+        }
+      },
+      scales: {
+        x: { display: false },
+        y: { display: false }
+      }
+    }
+  });
+}
+
+
+async function fetchWithProxy(url) {
+  const proxy = 'https://quiet-moon-b6d5.adamaun9.workers.dev/?url=' + encodeURIComponent(url);
+  const res = await fetch(proxy);
+  if (!res.ok) throw new Error('proxy failed: HTTP ' + res.status);
+  return await res.json();
+}
+
+async function fetchFRED(seriesId, apiKey, limit = 60) {
+  const url = 'https://api.stlouisfed.org/fred/series/observations' +
+    '?series_id=' + seriesId +
+    '&api_key=' + apiKey +
+    '&file_type=json&sort_order=desc&limit=' + limit;
+  const j = await fetchWithProxy(url);
+  return parseFREDJson(j);
+}
+
+// ─── YAHOO FINANCE FETCH ──────────────────────────────────
+async function fetchVintage(seriesId, apiKey, vintageDates) {
+  // ALFRED — fetch a specific vintage (data as it was on release date)
+  const url = 'https://api.stlouisfed.org/fred/series/observations' +
+    '?series_id=' + seriesId +
+    '&api_key=' + apiKey +
+    '&file_type=json&sort_order=desc&limit=5' +
+    '&vintage_dates=' + vintageDates.join(',');
+  const j = await fetchWithProxy(url);
+  if (!j.observations) return null;
+  const valid = j.observations.filter(o => o.value !== '.' && o.value !== '');
+  return valid.length > 0 ? parseFloat(valid[0].value) : null;
+}
+
+async function fetchMarket(symbol) {
+  const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' +
+    symbol.replace('^', '%5E') +
+    '?range=3y&interval=1d&events=history';
+  const j = await fetchWithProxy(yahooUrl);
+  if (!j.chart || !j.chart.result || !j.chart.result[0]) {
+    const err = j.chart?.error?.description || j['Error Message'] || 'no data returned';
+    throw new Error(symbol + ': ' + err);
+  }
+  const result = j.chart.result[0];
+  const closes = result.indicators.quote[0].close;
+  return result.timestamp
+    .map((t, i) => ({ date: new Date(t * 1000).toISOString().slice(0, 10), value: closes[i] }))
+    .filter(d => d.value != null);
+}
+
+// ─── CHART HELPERS ────────────────────────────────────────
+Chart.defaults.color = '#d8eaf5';
+Chart.defaults.font.family = "'Space Mono', monospace";
+Chart.defaults.font.size = 10;
+
+function makeLineChart(canvasId, labels, data, color, fill = true) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if (charts[canvasId]) charts[canvasId].destroy();
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+  gradient.addColorStop(0, color + '33');
+  gradient.addColorStop(1, color + '00');
+
+  charts[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: color,
+        borderWidth: 1.5,
+        backgroundColor: fill ? gradient : 'transparent',
+        fill,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: color,
+        pointHoverBorderColor: '#080c10',
+        pointHoverBorderWidth: 2,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 800, easing: 'easeInOutQuart' },
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: true,
+          backgroundColor: '#0d1117',
+          borderColor: color,
+          borderWidth: 1,
+          titleColor: '#d8eaf5',
+          bodyColor: '#e8edf2',
+          padding: 10,
+          displayColors: false,
+          titleFont: { family: "'Space Mono', monospace", size: 10 },
+          bodyFont: { family: "'DM Mono', monospace", size: 15, weight: '700' },
+          callbacks: {
+            title: items => items[0].label,
+            label: item => ' ' + Number(item.parsed.y).toLocaleString(undefined, { maximumFractionDigits: 2 })
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(30,45,61,0.6)', drawBorder: false },
+          ticks: { maxTicksLimit: 6, maxRotation: 0 }
+        },
+        y: {
+          grid: { color: 'rgba(30,45,61,0.6)', drawBorder: false },
+          ticks: { maxTicksLimit: 5 },
+          position: 'right'
+        }
+      }
+    }
+  });
+}
+
+function makeSparkline(canvasId, data, color) {
+  const ctx = document.getElementById(canvasId)?.getContext('2d');
+  if (!ctx) return;
+  if (sparklines[canvasId]) sparklines[canvasId].destroy();
+  // Show only first, middle, last date labels
+  const n = data.length;
+  const tickLabels = data.map(() => '');
+  sparklines[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: tickLabels,
+      datasets: [{ data: data.map(d => d.value), borderColor: color, borderWidth: 1.5, backgroundColor: 'transparent', fill: false, pointRadius: 0, tension: 0.4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 600 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: true,
+          backgroundColor: '#0d1117',
+          borderColor: color,
+          borderWidth: 1,
+          titleColor: '#d8eaf5',
+          bodyColor: '#e8edf2',
+          padding: 8,
+          displayColors: false,
+          titleFont: { family: "'Space Mono', monospace", size: 9 },
+          bodyFont: { family: "'DM Mono', monospace", size: 12, weight: '700' },
+          callbacks: {
+            title: items => data[items[0].dataIndex]?.date ?? '',
+            label: item => ' ' + Number(item.parsed.y).toLocaleString(undefined, { maximumFractionDigits: 2 })
+          }
+        }
+      },
+      scales: {
+        x: { display: false },
+        y: { display: false }
+      }
+    }
+  });
+}
+
+
+
+const FRED_SERIES = {
+  "Unemployment": { id: "UNRATE", label: "Unemployment Rate", unit: "%", decimals: 1, freq: "MoM", desc: "Percentage of the labor force actively seeking work. Released first Friday of every month. Below 4% is healthy. One of the Fed dual mandate targets.", higherIsGood: false, dualRow: false },
+  "JoblessClaims": { id: "ICSA", label: "Initial Jobless Claims", unit: "K", decimals: 0, freq: "WoW", desc: "Weekly unemployment filings — the most timely labor market indicator. Below 250K is healthy. Spikes here appear weeks before the monthly rate moves.", higherIsGood: false, dualRow: false },
+  "ContClaims": { id: "CCSA", label: "Continuing Claims", unit: "K", decimals: 0, freq: "WoW", desc: "People continuing to receive unemployment benefits. Shows how long people stay unemployed — how hard it is to find a new job.", higherIsGood: false, dualRow: false },
+  "LFPR": { id: "CIVPART", label: "Labor Force Participation", unit: "%", decimals: 1, freq: "MoM", desc: "Percentage of working-age population employed or seeking work. Fell sharply during COVID and never fully recovered — important context for the headline unemployment rate.", higherIsGood: true, dualRow: false },
+  "JOLTS": { id: "JTSJOL", label: "Job Openings (JOLTS)", unit: "K", decimals: 0, freq: "MoM", desc: "Unfilled job positions. High openings relative to unemployed workers signals a tight labor market. The Fed watches the openings-to-unemployed ratio closely as an inflation signal.", higherIsGood: true, dualRow: true },
+  "AHE": { id: "CES0500000003", label: "Avg Hourly Earnings", unit: "$", decimals: 2, freq: "MoM", desc: "Average hourly earnings of all private employees. Rising wages are good for workers but feed services inflation — the Fed watches this closely since wage-price spirals are hard to break.", higherIsGood: true, dualRow: true },
+  "Underemployment": { id: "U6RATE", label: "Underemployment U-6", unit: "%", decimals: 1, freq: "MoM", desc: "Broad unemployment including marginally-attached workers and part-timers wanting full-time work. Fuller picture of labor slack. Typically runs 2x the headline U-3 rate.", higherIsGood: false, dualRow: false },
+  "NFP": { id: "PAYEMS", label: "Nonfarm Payrolls", unit: "K", decimals: 0, freq: "MoM", desc: "Monthly change in total employed persons. The headline jobs number. Above 200K is strong; below 100K raises recession concerns.", higherIsGood: true, dualRow: true },
+  "QuitRate": { id: "JTSQUR", label: "Quit Rate", unit: "%", decimals: 1, freq: "MoM", desc: "Percentage of workers voluntarily quitting. High quit rate signals worker confidence — people only quit when confident they can find something better.", higherIsGood: true, dualRow: false }
+};
+const MARKET = {
+  "XLI": { label: "Industrials ETF", canvasId: "chartXLI", valId: "xli-val", chgId: "xli-chg", color: "#00d4ff" },
+  "^GSPC": { label: "S&P 500", canvasId: "chartSPX", valId: "spx-val", chgId: "spx-chg", color: "#00d4ff" }
+};
+const HIGHER_IS_GOOD = ["LFPR", "JOLTS", "AHE", "NFP", "QuitRate"];
+const DUAL_ROW = ["JOLTS", "AHE", "NFP"];
+
+function cellColor(val, sName, isChange) {
+  if (sName === 'Spread') return val >= 0 ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
+  if (isChange) {
+    const good = HIGHER_IS_GOOD.includes(sName) ? val >= 0 : val <= 0;
+    return good ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
+  }
+  return null;
+}
+function gradientColor(t, hig) {
+  const g = hig ? t : 1-t;
+  if (g<0.5){const r=Math.round(180+(0.5-g)*2*75);return 'rgba('+r+',40,60,0.4)';}
+  else{const gr=Math.round(80+(g-0.5)*2*150);return 'rgba(0,'+gr+',60,0.4)';}
+}
+function updateCard(name, rawObs) {
+  seriesRawData[name] = rawObs;
+  const obs = filterToTwoYears(rawObs);
+  if (obs.length < 2) return;
+  const cfg = FRED_SERIES[name];
+  const latest = obs[obs.length-1], prior = obs[obs.length-2];
+  const change = latest.value - prior.value;
+  const pct = (change / Math.abs(prior.value)) * 100;
+  const pos = change >= 0;
+  document.getElementById('val-'+name).classList.remove('loading-text');
+  document.getElementById('val-'+name).innerHTML = latest.value.toLocaleString(undefined,{maximumFractionDigits:cfg.decimals})+'<span class="kpi-unit">'+cfg.unit+'</span>';
+  document.getElementById('chg-'+name).className = 'kpi-change '+(pos?'pos':'neg');
+  document.getElementById('chg-'+name).textContent = (pos?'▲':'▼')+' '+Math.abs(change).toLocaleString(undefined,{maximumFractionDigits:cfg.decimals})+' ('+pct.toFixed(2)+'%)';
+  document.getElementById('date-'+name).textContent = cfg.freq;
+  const tip = document.getElementById('tip-'+name); if(tip) tip.textContent = cfg.desc||'';
+  makeSparkline('spark-'+name, obs, '#00d4ff');
+  const t9 = obs.slice(-9), wrap = document.getElementById('mini-table-'+name);
+  if (wrap && t9.length >= 2) {
+    if (DUAL_ROW.includes(name)) {
+      const disp = t9.slice(-8);
+      const hdrs = disp.map(d=>{const p=d.date.split('-');return '<th>'+p[1]+'/'+p[2].slice(0,2)+'/'+p[0].slice(2)+'</th>';}).join('');
+      const full = seriesRawData[name]||obs;
+      const yv = disp.map(d=>{
+        const pd=(parseInt(d.date.slice(0,4))-1)+d.date.slice(4);
+        const pr=full.find(p=>p.date===pd)||full.filter(p=>p.date<d.date&&p.date>=pd).slice(-1)[0];
+        return pr?((d.value-pr.value)/Math.abs(pr.value))*100:null;
+      });
+      const yc = yv.map(v=>v===null?'<td style="color:var(--muted)">–</td>':'<td style="background:'+cellColor(v,name,true)+'">'+(v>=0?'+':'')+v.toFixed(2)+'%</td>').join('');
+      wrap.innerHTML='<table class="mini-table"><thead><tr><th></th>'+hdrs+'</tr></thead><tbody><tr><td style="color:var(--muted);font-size:8px;padding-right:6px;white-space:nowrap;">YoY</td>'+yc+'</tr></tbody></table>';
+    } else {
+      const disp = t9.slice(-8);
+      const vals = disp.map(d=>d.value);
+      const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
+      const hig=HIGHER_IS_GOOD.includes(name);
+      const hdrs=disp.map(d=>{const p=d.date.split('-');return '<th>'+p[1]+'/'+p[2].slice(0,2)+'/'+p[0].slice(2)+'</th>';}).join('');
+      const cells=disp.map((d,i)=>{
+        const bg=name==='Spread'?cellColor(d.value,name,false):gradientColor((d.value-mn)/rng,hig);
+        return '<td style="background:'+bg+'">'+d.value.toLocaleString(undefined,{maximumFractionDigits:cfg.decimals})+cfg.unit+'</td>';
+      }).join('');
+      wrap.innerHTML='<table class="mini-table"><thead><tr>'+hdrs+'</tr></thead><tbody><tr>'+cells+'</tr></tbody></table>';
+    }
+  }
+}
+async function fetchAll() {
+  const btn=document.getElementById('refreshBtn'), errEl=document.getElementById('errorMsg');
+  btn.classList.add('loading'); btn.textContent='⟳ Loading…'; errEl.style.display='none';
+  const errors=[];
+  const fn=Object.keys(FRED_SERIES);
+  for(let i=0;i<fn.length;i++){
+    if(i>0) await sleep(300);
+    const name=fn[i];
+    try{const obs=await fetchFRED(FRED_SERIES[name].id,FRED_API_KEY,80);updateCard(name,obs);}
+    catch(e){errors.push('FRED '+FRED_SERIES[name].id+': '+e.message);const el=document.getElementById('val-'+name);if(el){el.textContent='Error';el.classList.add('loading-text');}}
+  }
+  const ms=Object.keys(MARKET);
+  for(let i=0;i<ms.length;i++){
+    if(i>0) await sleep(600);
+    const sym=ms[i], cfg=MARKET[sym];
+    try{
+      const obs=await fetchMarket(sym);
+      if(obs.length>1){
+        const latest=obs[obs.length-1],prior=obs[obs.length-2];
+        const pct=((latest.value-prior.value)/Math.abs(prior.value))*100, pos=pct>=0;
+        document.getElementById(cfg.valId).textContent=latest.value.toLocaleString(undefined,{maximumFractionDigits:2});
+        const ce=document.getElementById(cfg.chgId); ce.textContent=(pos?'+':'')+pct.toFixed(2)+'%'; ce.style.color=pos?'var(--green)':'var(--red)';
+        makeLineChart(cfg.canvasId,obs.map(d=>d.date),obs.map(d=>d.value),cfg.color);
+      }
+    }catch(e){errors.push('Market ('+cfg.label+'): '+e.message);document.getElementById(cfg.valId).textContent='N/A';}
+  }
+  const now=new Date(), ts=now.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('last-updated').textContent='Updated '+ts;
+  document.getElementById('footer-ts').textContent='Last fetch: '+ts;
+  if(errors.length>0){errEl.innerHTML=errors.map(e=>'⚠ '+e).join('<br>');errEl.style.display='block';}
+  btn.classList.remove('loading'); btn.textContent='↻ Refresh';
+  clearTimeout(refreshTimer); refreshTimer=setTimeout(fetchAll,REFRESH_INTERVAL);
+}
+window.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.kpi-info').forEach(icon => {
+    const card = icon.closest('.kpi-card');
+    icon.addEventListener('mouseenter', () => card.classList.add('show-tip'));
+    icon.addEventListener('mouseleave', () => card.classList.remove('show-tip'));
+  });
+  fetchAll();
+});
+</script>
+</body>
+</html>
