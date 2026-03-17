@@ -572,6 +572,36 @@
     .cal-prev { display: none; }
     .cal-days { display: none; }
   }
+
+  /* ── NAV BAR ─────────────────────────────────────────────── */
+  .nav-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    gap: 0;
+    position: sticky;
+    top: 52px;
+    z-index: 99;
+  }
+  .nav-link {
+    color: var(--muted);
+    text-decoration: none;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .nav-link:hover { color: var(--text); }
+  .nav-link.active { color: var(--accent); border-bottom-color: var(--accent); }
+  @media (max-width: 768px) {
+    .nav-bar { overflow-x: auto; top: auto; }
+    .nav-link { padding: 8px 12px; font-size: 9px; }
+  }
 </style>
 </head>
 <body>
@@ -584,6 +614,7 @@
     <button class="refresh-btn" id="refreshBtn" onclick="fetchAll()">↻ Refresh</button>
   </div>
 </header>
+<nav class="nav-bar"><a href="index.html" class="nav-link active">Macro</a><a href="inflation.html" class="nav-link">Inflation</a><a href="housing.html" class="nav-link">Housing</a><a href="labor.html" class="nav-link">Labor</a><a href="markets.html" class="nav-link">Markets</a></nav>
 
 
 <main class="main">
@@ -755,7 +786,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">US Dollar Index</div>
-          <div class="panel-sub">DXY · Daily</div>
+          <div class="panel-sub">DX=F · Daily</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
           <span id="dxy-val" style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;">–</span>
@@ -844,7 +875,7 @@ const FRED_SERIES = {
 const MARKET = {
   "^GSPC":    { label: "S&P 500",   canvasId: "chartSPX",  valId: "spx-val",  chgId: "spx-chg",  color: "#00d4ff" },
   "CL=F":     { label: "WTI Crude", canvasId: "chartOil",  valId: "oil-val",  chgId: "oil-chg",  color: "#ff6b35" },
-  "DX-Y.NYB": { label: "US Dollar", canvasId: "chartDXY",  valId: "dxy-val",  chgId: "dxy-chg",  color: "#ffd700" },
+  "DX=F": { label: "US Dollar", canvasId: "chartDXY",  valId: "dxy-val",  chgId: "dxy-chg",  color: "#ffd700" },
   "^VIX":     { label: "VIX",       canvasId: "chartVIX",  valId: "vix-val",  chgId: "vix-chg",  color: "#ff3b5c" },
   "GC=F":     { label: "Gold",      canvasId: "chartGold", valId: "gold-val", chgId: "gold-chg", color: "#ffd700" },
   "BTC-USD":  { label: "Bitcoin",   canvasId: "chartBTC",  valId: "btc-val",  chgId: "btc-chg",  color: "#f7931a" }
@@ -1246,7 +1277,7 @@ async function fetchAll() {
   }
 
   // MARKET DATA — Yahoo Finance via proxy, fetched sequentially to avoid rate limits
-  const marketSymbols = ['^GSPC', 'CL=F', 'DX-Y.NYB', '^VIX', 'GC=F', 'BTC-USD'];
+  const marketSymbols = ['^GSPC', 'CL=F', 'DX=F', '^VIX', 'GC=F', 'BTC-USD'];
   for (let i = 0; i < marketSymbols.length; i++) {
     if (i > 0) await sleep(600); // stagger requests so proxy doesn't rate limit
     const sym = marketSymbols[i];
@@ -1570,12 +1601,9 @@ function renderCalendar(events, from, to) {
     const dateStr = formatCalDate(ev.date);
     const timeStr = ev.time ? formatCalTime(ev.time) : '';
 
-    const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
-    const todayParts = todayStr.split('-');
-    const evParts = ev.date.split('-');
-    const todayMidnight = new Date(parseInt(todayParts[0]), parseInt(todayParts[1])-1, parseInt(todayParts[2]));
-    const evMidnight = new Date(parseInt(evParts[0]), parseInt(evParts[1])-1, parseInt(evParts[2]));
-    const daysAway = Math.round((evMidnight - todayMidnight) / 86400000);
+    const now = new Date();
+    const evParts = ev.date.split('-').map(Number);
+    const daysAway = Math.round((new Date(evParts[0], evParts[1]-1, evParts[2]) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000) - 1;
     const daysColor = daysAway === 0 ? 'var(--accent2)' : daysAway <= 3 ? 'var(--warn)' : 'var(--text)';
     const daysLabel = daysAway === 0 ? 'today' : daysAway === 1 ? 'day' : 'days';
 
