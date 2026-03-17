@@ -52,14 +52,17 @@ describe('renderCalendar', () => {
 
   it('renders event rows for each provided event', () => {
     const events = [
-      { date: '2026-03-18', time: '08:30', event: 'CPI Release', freq: 'MoM', source: 'BLS', impact: true },
-      { date: '2026-03-20', time: '08:30', event: 'Jobless Claims', freq: 'WoW', source: 'DOL', impact: false },
+      { date: '2026-03-18', time: '08:30', event: 'CPI Release',    freq: 'MoM', source: 'BLS', impact: 'high'   },
+      { date: '2026-03-19', time: '08:30', event: 'PPI Release',    freq: 'MoM', source: 'BLS', impact: 'medium' },
+      { date: '2026-03-20', time: '08:30', event: 'Jobless Claims', freq: 'WoW', source: 'DOL', impact: 'low'    },
     ];
     renderCalendar(events, '2026-03-17', '2026-03-31');
     const grid = document.getElementById('calendarGrid');
-    assert.ok(grid.textContent.includes('CPI Release'),     'should show CPI event');
-    assert.ok(grid.textContent.includes('Jobless Claims'),  'should show Claims event');
-    assert.ok(grid.textContent.includes('HIGH IMPACT'),     'should flag high-impact events');
+    assert.ok(grid.textContent.includes('CPI Release'),    'should show CPI event');
+    assert.ok(grid.textContent.includes('Jobless Claims'), 'should show Claims event');
+    assert.ok(grid.innerHTML.includes('cal-impact-high'),   'should render HIGH badge');
+    assert.ok(grid.innerHTML.includes('cal-impact-medium'), 'should render MED badge');
+    assert.ok(!grid.innerHTML.includes('cal-impact-low'),   'low impact should have no badge');
   });
 
   it('renders events sorted by date', () => {
@@ -126,21 +129,27 @@ describe('RELEASE_META', () => {
     });
   });
 
-  it('each entry has time, freq, source, impact fields', () => {
+  it('each entry has name, time, freq, source, impact fields', () => {
+    const validImpact = new Set(['high', 'medium', 'low']);
     Object.entries(RELEASE_META).forEach(([id, meta]) => {
+      assert.ok('name'   in meta, id + ' missing name');
       assert.ok('time'   in meta, id + ' missing time');
       assert.ok('freq'   in meta, id + ' missing freq');
       assert.ok('source' in meta, id + ' missing source');
       assert.ok('impact' in meta, id + ' missing impact');
-      assert.equal(typeof meta.impact, 'boolean', id + ' impact should be boolean');
+      assert.ok(validImpact.has(meta.impact), id + ' impact must be high/medium/low, got: ' + meta.impact);
     });
   });
 
   it('CPI (release 10) is marked high impact', () => {
-    assert.ok(RELEASE_META[10]?.impact, 'CPI should be high impact');
+    assert.equal(RELEASE_META[10]?.impact, 'high', 'CPI should be high impact');
   });
 
-  it('Employment Situation (release 46) is marked high impact', () => {
-    assert.ok(RELEASE_META[46]?.impact, 'Employment Situation should be high impact');
+  it('Nonfarm Payrolls (release 46) is marked high impact', () => {
+    assert.equal(RELEASE_META[46]?.impact, 'high', 'Nonfarm Payrolls should be high impact');
+  });
+
+  it('Jobless Claims (release 50) is marked medium impact', () => {
+    assert.equal(RELEASE_META[50]?.impact, 'medium', 'Jobless Claims should be medium impact');
   });
 });

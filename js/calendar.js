@@ -35,9 +35,9 @@ function renderCalendar(events, from, to) {
   let html = '';
   sorted.forEach((ev, idx) => {
     const isLast    = idx === sorted.length - 1;
-    const lastClass = isLast    ? ' cal-grid-last' : '';
+    const lastClass = isLast  ? ' cal-grid-last' : '';
     const fomc      = ev.freq === 'Fed';
-    const fomcClass = fomc      ? ' cal-fomc'      : '';
+    const fomcClass = fomc    ? ' cal-fomc'      : '';
     const color     = FREQ_COLORS[ev.freq] || '#5a7a94';
     const dateStr   = formatCalDate(ev.date);
     const timeStr   = ev.time ? formatCalTime(ev.time) : '';
@@ -49,6 +49,14 @@ function renderCalendar(events, from, to) {
       daysAway === 0 ? 'var(--accent2)' :
       daysAway <= 3  ? 'var(--warn)'    : 'var(--text)';
     const daysLabel = daysAway === 0 ? 'today' : daysAway === 1 ? 'day' : 'days';
+
+    // Impact badge — only render for high and medium; skip low
+    let impactBadge = '';
+    if (ev.impact === 'high' || ev.impact === true) {
+      impactBadge = '<span class="cal-impact cal-impact-high" style="margin-left:auto;">HIGH</span>';
+    } else if (ev.impact === 'medium') {
+      impactBadge = '<span class="cal-impact cal-impact-medium" style="margin-left:auto;">MED</span>';
+    }
 
     html +=
       '<div class="cal-date' + lastClass + fomcClass + '">' +
@@ -69,7 +77,7 @@ function renderCalendar(events, from, to) {
           '<div class="cal-name">' + ev.event + '</div>' +
           '<div class="cal-sub">' + ev.source + ' · ' + ev.freq + '</div>' +
         '</div>' +
-        (ev.impact ? '<span class="cal-impact" style="margin-left:auto;">HIGH IMPACT</span>' : '') +
+        impactBadge +
       '</div>' +
 
       '<div class="cal-prev' + fomcClass + lastClass + '">' +
@@ -83,32 +91,35 @@ function renderCalendar(events, from, to) {
 }
 
 // ─── FRED RELEASE METADATA ───────────────────────────────
-// Maps FRED release_id → { time, freq, source, impact }
-// Used to enrich dynamically fetched release dates.
+// Only releases listed here are shown in the calendar — everything else is
+// filtered out. The FRED releases/dates API returns hundreds of obscure series;
+// this allowlist keeps the calendar focused on market-moving events.
+//
+// impact: 'high' | 'medium' | 'low'
 const RELEASE_META = {
-  10:  { time: '08:30', freq: 'MoM', source: 'BLS',            impact: true  }, // CPI
-  11:  { time: '08:30', freq: 'MoM', source: 'BLS',            impact: false }, // Import/Export Prices
-  15:  { time: '08:30', freq: 'MoM', source: 'Census',         impact: true  }, // Retail Sales
-  17:  { time: '10:00', freq: 'MoM', source: 'Conference Board',impact: false }, // Consumer Confidence
-  19:  { time: '10:00', freq: 'MoM', source: 'NAR',            impact: false }, // Existing Home Sales
-  21:  { time: '13:30', freq: 'MoM', source: 'Federal Reserve',impact: false }, // M2 / H.6 Money Stock
-  31:  { time: '08:30', freq: 'MoM', source: 'BLS',            impact: false }, // PPI
-  46:  { time: '08:30', freq: 'MoM', source: 'BLS',            impact: true  }, // Employment Situation
-  50:  { time: '08:30', freq: 'WoW', source: 'Dept of Labor',  impact: false }, // Initial Jobless Claims
-  51:  { time: '08:30', freq: 'MoM', source: 'BLS',            impact: false }, // JOLTS
-  53:  { time: '08:30', freq: 'QoQ', source: 'BEA',            impact: true  }, // GDP
-  54:  { time: '10:00', freq: 'MoM', source: 'Census',         impact: false }, // New Residential Sales
-  55:  { time: '08:30', freq: 'MoM', source: 'BEA',            impact: false }, // Personal Income/Outlays (PCE)
-  56:  { time: '08:30', freq: 'MoM', source: 'Census',         impact: false }, // Housing Starts & Permits
-  82:  { time: '10:00', freq: 'MoM', source: 'Conference Board',impact: false }, // Leading Indicators
-  86:  { time: '09:15', freq: 'MoM', source: 'Federal Reserve',impact: false }, // Industrial Production
-  113: { time: '08:30', freq: 'QoQ', source: 'BLS',            impact: false }, // Employment Cost Index
-  118: { time: '09:00', freq: 'MoM', source: 'S&P/Case-Shiller',impact: false }, // Case-Shiller HPI
-  160: { time: '10:00', freq: 'MoM', source: 'ISM',            impact: false }, // ISM Manufacturing
-  161: { time: '10:00', freq: 'MoM', source: 'ISM',            impact: false }, // ISM Services
-  175: { time: '10:00', freq: 'MoM', source: 'Census',         impact: false }, // Construction Spending
-  180: { time: '10:00', freq: 'MoM', source: 'Univ of Michigan',impact: false }, // Consumer Sentiment
-  200: { time: '10:00', freq: 'MoM', source: 'NAR',            impact: false }, // Pending Home Sales
+  10:  { name: 'Consumer Price Index (CPI)',      time: '08:30', freq: 'MoM', source: 'BLS',             impact: 'high'   },
+  11:  { name: 'Import & Export Prices',           time: '08:30', freq: 'MoM', source: 'BLS',             impact: 'low'    },
+  15:  { name: 'Retail Sales',                     time: '08:30', freq: 'MoM', source: 'Census',          impact: 'high'   },
+  17:  { name: 'Consumer Confidence',              time: '10:00', freq: 'MoM', source: 'Conference Board',impact: 'medium' },
+  19:  { name: 'Existing Home Sales',              time: '10:00', freq: 'MoM', source: 'NAR',             impact: 'low'    },
+  21:  { name: 'M2 Money Supply',                  time: '13:30', freq: 'MoM', source: 'Federal Reserve', impact: 'low'    },
+  31:  { name: 'Producer Price Index (PPI)',       time: '08:30', freq: 'MoM', source: 'BLS',             impact: 'medium' },
+  46:  { name: 'Nonfarm Payrolls',                 time: '08:30', freq: 'MoM', source: 'BLS',             impact: 'high'   },
+  50:  { name: 'Initial Jobless Claims',           time: '08:30', freq: 'WoW', source: 'Dept of Labor',   impact: 'medium' },
+  51:  { name: 'JOLTS Job Openings',               time: '10:00', freq: 'MoM', source: 'BLS',             impact: 'medium' },
+  53:  { name: 'GDP',                              time: '08:30', freq: 'QoQ', source: 'BEA',             impact: 'high'   },
+  54:  { name: 'New Home Sales',                   time: '10:00', freq: 'MoM', source: 'Census',          impact: 'low'    },
+  55:  { name: 'PCE / Personal Income',            time: '08:30', freq: 'MoM', source: 'BEA',             impact: 'medium' },
+  56:  { name: 'Housing Starts & Permits',         time: '08:30', freq: 'MoM', source: 'Census',          impact: 'medium' },
+  82:  { name: 'Leading Economic Indicators',      time: '10:00', freq: 'MoM', source: 'Conference Board',impact: 'low'    },
+  86:  { name: 'Industrial Production',            time: '09:15', freq: 'MoM', source: 'Federal Reserve', impact: 'low'    },
+  113: { name: 'Employment Cost Index',            time: '08:30', freq: 'QoQ', source: 'BLS',             impact: 'medium' },
+  118: { name: 'Case-Shiller Home Prices',         time: '09:00', freq: 'MoM', source: 'S&P/Case-Shiller',impact: 'low'    },
+  160: { name: 'ISM Manufacturing PMI',            time: '10:00', freq: 'MoM', source: 'ISM',             impact: 'medium' },
+  161: { name: 'ISM Services PMI',                 time: '10:00', freq: 'MoM', source: 'ISM',             impact: 'medium' },
+  175: { name: 'Construction Spending',            time: '10:00', freq: 'MoM', source: 'Census',          impact: 'low'    },
+  180: { name: 'Consumer Sentiment',               time: '10:00', freq: 'MoM', source: 'Univ of Michigan',impact: 'low'    },
+  200: { name: 'Pending Home Sales',               time: '10:00', freq: 'MoM', source: 'NAR',             impact: 'low'    },
 };
 
 // FOMC meeting decision dates (announced ~1 year in advance by the Fed).
@@ -152,21 +163,20 @@ async function fetchCalendar() {
 
     if (json.release_dates && Array.isArray(json.release_dates)) {
       events = json.release_dates
-        .filter(r => r.date >= today && r.date <= future)
+        .filter(r => r.date >= today && r.date <= future && RELEASE_META[r.release_id])
         .map(r => {
-          const meta = RELEASE_META[r.release_id] || {};
+          const meta = RELEASE_META[r.release_id];
           return {
             date:   r.date,
-            time:   meta.time   || '',
-            event:  r.release_name,
-            freq:   meta.freq   || 'MoM',
-            source: meta.source || 'FRED',
-            impact: meta.impact || false
+            time:   meta.time,
+            event:  meta.name,
+            freq:   meta.freq,
+            source: meta.source,
+            impact: meta.impact
           };
         });
     }
   } catch (e) {
-    // If FRED calendar fetch fails, continue with FOMC only
     console.warn('Calendar fetch failed:', e.message);
   }
 
@@ -179,7 +189,7 @@ async function fetchCalendar() {
         event:  'Fed Interest Rate Decision',
         freq:   'Fed',
         source: 'Federal Reserve',
-        impact: true
+        impact: 'high'
       });
     }
   });
