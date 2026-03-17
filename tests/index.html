@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MACRO — Test Suite</title>
+<link rel="stylesheet" href="https://unpkg.com/mocha/mocha.css">
+<style>
+  body { background: #080c10; color: #e8edf2; font-family: 'Space Mono', monospace; margin: 0; padding: 20px; }
+  #mocha { font-family: monospace; }
+  #mocha h1 a { color: #00d4ff; }
+  #mocha h2 { color: #e8edf2; }
+  #mocha .pass .title { color: #00ff9d; }
+  #mocha .fail .title { color: #ff3b5c; }
+  #mocha .fail pre   { color: #ff6b35; background: #0d1117; border: 1px solid #1e2d3d; padding: 8px; }
+  #mocha-stats .passes { color: #00ff9d; }
+  #mocha-stats .failures { color: #ff3b5c; }
+  h1.suite-header { color: #00d4ff; font-size: 14px; letter-spacing: 0.2em; border-bottom: 1px solid #1e2d3d; padding-bottom: 8px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<h1 class="suite-header">// MACRO TEST SUITE</h1>
+<div id="mocha"></div>
+
+<!-- Mocha + Chai -->
+<script src="https://unpkg.com/mocha/mocha.js"></script>
+<script src="https://unpkg.com/chai/chai.js"></script>
+<script>
+  mocha.setup({ ui: 'bdd', timeout: 5000 });
+  const assert = chai.assert;
+  // Expose assert globally so test files can use it directly
+  window.assert = assert;
+</script>
+
+<!-- Source modules under test (load in dependency order) -->
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<!-- charts.js requires Chart.js CDN — skip for unit tests -->
+<script>
+  // Stub Chart.js-dependent globals so ui.js can load
+  window.Chart = { defaults: { color: '', font: {} } };
+  window.charts    = {};
+  window.sparklines = {};
+  window.makeLineChart  = () => {};
+  window.makeSparkline  = () => {};
+  // Stub page-level globals (normally defined per-page inline script)
+  window.FRED_SERIES   = {};
+  window.MARKET        = {};
+  window.HIGHER_IS_GOOD = [];
+  window.DUAL_ROW       = [];
+</script>
+<script src="../js/ui.js"></script>
+<script src="../js/calendar.js"></script>
+
+<!-- Test files -->
+<script src="api.test.js"></script>
+<script src="ui.test.js"></script>
+<script src="calendar.test.js"></script>
+
+<script>mocha.run();</script>
+</body>
+</html>

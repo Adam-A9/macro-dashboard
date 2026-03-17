@@ -851,8 +851,13 @@
 </footer>
 
 
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/calendar.js"></script>
 <script>
-// ─── CONFIG ───────────────────────────────────────────────
+// ─── PAGE CONFIG ─────────────────────────────────────────
 const FRED_SERIES = {
   // DoD
   "10Y_Yield":    { id: "DGS10",         label: "10-Year Yield",         unit: "%",   decimals: 2, freq: "DoD", bar: "#00d4ff", desc: "The 10-year Treasury yield is the annualized return on a US government bond maturing in 10 years. Because Treasuries are considered risk-free, this rate serves as the foundation for virtually all other borrowing costs in the economy — mortgages, corporate bonds, auto loans, and student debt all price off of it. It also reflects the bond market's collective expectation for future growth and inflation. When yields rise sharply, financial conditions tighten across the board: stocks get repriced lower (future earnings are worth less today), and borrowing becomes more expensive for everyone." },
@@ -861,10 +866,10 @@ const FRED_SERIES = {
   // WoW
   Jobless_Claims: { id: "ICSA",           label: "Jobless Claims",         unit: "K",   decimals: 0, freq: "WoW", bar: "#a78bfa", desc: "Initial jobless claims counts the number of people filing for unemployment insurance for the first time in a given week, released every Thursday morning. Because it is weekly, it is the most timely labor market data available — stress in the job market shows up here weeks before the monthly unemployment rate captures it. A healthy economy typically sees claims below 250,000 per week. A sustained move above 300,000-350,000 is a warning sign. Sharp spikes — like those seen in March 2020 when claims hit 6 million in a single week — are among the first hard data signals of economic collapse." },
   // MoM
-  Unemployment:   { id: "UNRATE",         label: "Unemployment",           unit: "%",   decimals: 1, freq: "MoM", bar: "#00ff9d", desc: "The unemployment rate measures the share of people in the labor force who are actively looking for a job but cannot find one. Released every first Friday of the month by the Bureau of Labor Statistics — it is one of the most market-moving data points on the calendar. A reading below 4% is considered a strong, healthy labor market. Above 5-6% signals stress. The Fed is mandated to keep unemployment low alongside controlling inflation, so this number directly shapes rate decisions. Sustained rises here are often a recession warning." },
+  Unemployment:   { id: "UNRATE",         label: "Unemployment",           unit: "%",   decimals: 1, freq: "MoM", bar: "#ff6b35", desc: "The unemployment rate measures the share of people in the labor force who are actively looking for a job but cannot find one. Released every first Friday of the month by the Bureau of Labor Statistics — it is one of the most market-moving data points on the calendar. A reading below 4% is considered a strong, healthy labor market. Above 5-6% signals stress. The Fed is mandated to keep unemployment low alongside controlling inflation, so this number directly shapes rate decisions. Sustained rises here are often a recession warning." },
   CPI:            { id: "CPIAUCSL",       label: "CPI",                    unit: "",    decimals: 2, freq: "MoM", bar: "#00ff9d", desc: "The Consumer Price Index tracks how much a fixed basket of everyday goods and services — food, rent, gasoline, healthcare, clothing — costs over time. It is the Fed's primary gauge of whether inflation is under control. Their official target is 2% annual growth. When CPI runs significantly above target, the Fed raises interest rates aggressively to slow borrowing and cool demand. The 2022-2023 rate hike cycle, the fastest in 40 years, was a direct response to CPI hitting 9.1%. When CPI falls toward target, rate cuts become possible." },
   PPI:            { id: "PPIACO",         label: "PPI",                    unit: "",    decimals: 2, freq: "MoM", bar: "#00ff9d", desc: "The Producer Price Index measures the average change in prices that domestic producers receive for their goods and services — think factory gates, farms, and wholesalers. Because businesses eventually pass higher input costs on to consumers, PPI tends to lead CPI by several weeks or months, making it a valuable early warning system for inflation. A sustained rise in PPI while CPI is still calm often signals that consumer prices are about to accelerate. It's closely watched by investors trying to anticipate the next CPI print." },
-  M2:             { id: "M2SL",           label: "M2 Money Supply",        unit: "B$",  decimals: 0, freq: "MoM", bar: "#00ff9d", desc: "M2 is the Fed's broad measure of money supply — it counts physical cash, checking accounts, savings accounts, and money market funds. When the Fed cuts rates or conducts quantitative easing (buying bonds), money supply expands. The relationship between M2 and inflation is foundational: more money chasing the same quantity of goods pushes prices up. The massive M2 surge of 2020-2021, when the Fed injected trillions into the economy during COVID, directly preceded the inflation wave of 2022. A shrinking M2 is disinflationary and typically follows rate hikes." },
+  M2:             { id: "M2SL",           label: "M2 Money Supply",        unit: "B$",  decimals: 0, freq: "MoM", bar: "#ffd700", desc: "M2 is the Fed's broad measure of money supply — it counts physical cash, checking accounts, savings accounts, and money market funds. When the Fed cuts rates or conducts quantitative easing (buying bonds), money supply expands. The relationship between M2 and inflation is foundational: more money chasing the same quantity of goods pushes prices up. The massive M2 surge of 2020-2021, when the Fed injected trillions into the economy during COVID, directly preceded the inflation wave of 2022. A shrinking M2 is disinflationary and typically follows rate hikes." },
   Housing_Starts: { id: "HOUST",          label: "Housing Starts",         unit: "K",   decimals: 0, freq: "MoM", bar: "#00ff9d", desc: "Housing starts count the number of new residential homes on which construction began in a given month. Housing is one of the most interest-rate-sensitive sectors of the economy — when mortgage rates rise, affordability drops and builders pull back quickly. Because constructing a home requires lumber, appliances, concrete, electrical work, plumbing, and dozens of other inputs, a slowdown in starts sends ripples through the entire economy. It is considered a leading economic indicator: when starts fall sharply and persistently, a broader slowdown typically follows within 6-12 months." },
   Retail_Sales:   { id: "RSAFS",          label: "Retail Sales",           unit: "M$",  decimals: 0, freq: "MoM", bar: "#00ff9d", desc: "Retail sales measures the total dollar value of merchandise sold directly to consumers each month, from car dealerships to grocery stores to online retailers. Because consumer spending accounts for roughly 70% of US GDP, this number is one of the most direct real-time reads on economic momentum available. A strong retail sales print means households are employed, confident, and spending. Weakness here — especially if sustained — signals that consumers are pulling back, often a precursor to slower GDP growth. The Fed watches this closely when assessing whether the economy needs more stimulus or cooling." },
   CC_Delinquency: { id: "DRCCLACBS",      label: "Credit Card Delinquency", unit: "%",  decimals: 2, freq: "QoQ", bar: "#ff6b35", desc: "The credit card delinquency rate measures the share of credit card balances that are 30 or more days past due. It is one of the most direct measures of household financial stress available — when consumers can no longer keep up with minimum payments, it signals that real purchasing power is eroding beneath the surface. This metric often rises before unemployment spikes, making it a leading indicator of consumer distress that the other cards on this dashboard won't capture until months later. A sustained move above 3% historically precedes broader credit tightening and economic slowdowns." },
@@ -873,769 +878,118 @@ const FRED_SERIES = {
 };
 
 const MARKET = {
-  "^GSPC":    { label: "S&P 500",   canvasId: "chartSPX",  valId: "spx-val",  chgId: "spx-chg",  color: "#00d4ff" },
-  "CL=F":     { label: "WTI Crude", canvasId: "chartOil",  valId: "oil-val",  chgId: "oil-chg",  color: "#ff6b35" },
-  "DX=F": { label: "US Dollar", canvasId: "chartDXY",  valId: "dxy-val",  chgId: "dxy-chg",  color: "#ffd700" },
-  "^VIX":     { label: "VIX",       canvasId: "chartVIX",  valId: "vix-val",  chgId: "vix-chg",  color: "#ff3b5c" },
-  "GC=F":     { label: "Gold",      canvasId: "chartGold", valId: "gold-val", chgId: "gold-chg", color: "#ffd700" },
-  "BTC-USD":  { label: "Bitcoin",   canvasId: "chartBTC",  valId: "btc-val",  chgId: "btc-chg",  color: "#f7931a" }
+  "^GSPC":   { label: "S&P 500",   canvasId: "chartSPX",  valId: "spx-val",  chgId: "spx-chg",  color: "#00d4ff" },
+  "CL=F":    { label: "WTI Crude", canvasId: "chartOil",  valId: "oil-val",  chgId: "oil-chg",  color: "#ff6b35" },
+  "DX=F":    { label: "US Dollar", canvasId: "chartDXY",  valId: "dxy-val",  chgId: "dxy-chg",  color: "#ffd700" },
+  "^VIX":    { label: "VIX",       canvasId: "chartVIX",  valId: "vix-val",  chgId: "vix-chg",  color: "#ff3b5c" },
+  "GC=F":    { label: "Gold",      canvasId: "chartGold", valId: "gold-val", chgId: "gold-chg", color: "#ffd700" },
+  "BTC-USD": { label: "Bitcoin",   canvasId: "chartBTC",  valId: "btc-val",  chgId: "btc-chg",  color: "#f7931a" }
 };
 
+const HIGHER_IS_GOOD = ['GDP', 'Retail_Sales', 'Housing_Starts', 'M2'];
+const DUAL_ROW       = ['CPI', 'PPI', 'GDP', 'Retail_Sales', 'Housing_Starts', 'M2'];
 
-
-// Auto-refresh every 15 minutes
-const REFRESH_INTERVAL = 15 * 60 * 1000;
-let charts = {};
-let sparklines = {};
-let refreshTimer;
-const seriesRawData = {}; // stores full raw obs for YoY lookups
-
-// ─── FRED FETCH ────────────────────────────────────────────
-function parseFREDJson(json) {
-  if (!json.observations) throw new Error('No observations in response');
-  return json.observations
-    .filter(o => o.value !== "." && o.value !== "")
-    .map(o => ({ date: o.date, value: parseFloat(o.value) }))
-    .reverse();
-}
-
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-function filterToTwoYears(obs) {
-  const now = new Date();
-  const cutoff = (now.getFullYear() - 2) + '-01-01';
-  return obs.filter(d => d.date >= cutoff);
-}
-
-async function fetchWithProxy(url) {
-  const proxy = 'https://quiet-moon-b6d5.adamaun9.workers.dev/?url=' + encodeURIComponent(url);
-  const res = await fetch(proxy);
-  if (!res.ok) throw new Error('proxy failed: HTTP ' + res.status);
-  return await res.json();
-}
-
-async function fetchFRED(seriesId, apiKey, limit = 60) {
-  const url = 'https://api.stlouisfed.org/fred/series/observations' +
-    '?series_id=' + seriesId +
-    '&api_key=' + apiKey +
-    '&file_type=json&sort_order=desc&limit=' + limit;
-  const j = await fetchWithProxy(url);
-  return parseFREDJson(j);
-}
-
-// ─── YAHOO FINANCE FETCH ──────────────────────────────────
-async function fetchVintage(seriesId, apiKey, vintageDates) {
-  // ALFRED — fetch a specific vintage (data as it was on release date)
-  const url = 'https://api.stlouisfed.org/fred/series/observations' +
-    '?series_id=' + seriesId +
-    '&api_key=' + apiKey +
-    '&file_type=json&sort_order=desc&limit=5' +
-    '&vintage_dates=' + vintageDates.join(',');
-  const j = await fetchWithProxy(url);
-  if (!j.observations) return null;
-  const valid = j.observations.filter(o => o.value !== '.' && o.value !== '');
-  return valid.length > 0 ? parseFloat(valid[0].value) : null;
-}
-
-async function fetchMarket(symbol) {
-  const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' +
-    symbol.replace('^', '%5E') +
-    '?range=3y&interval=1d&events=history';
-  const j = await fetchWithProxy(yahooUrl);
-  if (!j.chart || !j.chart.result || !j.chart.result[0]) {
-    const err = j.chart?.error?.description || j['Error Message'] || 'no data returned';
-    throw new Error(symbol + ': ' + err);
-  }
-  const result = j.chart.result[0];
-  const closes = result.indicators.quote[0].close;
-  return result.timestamp
-    .map((t, i) => ({ date: new Date(t * 1000).toISOString().slice(0, 10), value: closes[i] }))
-    .filter(d => d.value != null);
-}
-
-// ─── CHART HELPERS ────────────────────────────────────────
-Chart.defaults.color = '#d8eaf5';
-Chart.defaults.font.family = "'Space Mono', monospace";
-Chart.defaults.font.size = 10;
-
-function makeLineChart(canvasId, labels, data, color, fill = true) {
-  const ctx = document.getElementById(canvasId).getContext('2d');
-  if (charts[canvasId]) charts[canvasId].destroy();
-
-  const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-  gradient.addColorStop(0, color + '33');
-  gradient.addColorStop(1, color + '00');
-
-  charts[canvasId] = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        data,
-        borderColor: color,
-        borderWidth: 1.5,
-        backgroundColor: fill ? gradient : 'transparent',
-        fill,
-        pointRadius: 0,
-        pointHoverRadius: 5,
-        pointHoverBackgroundColor: color,
-        pointHoverBorderColor: '#080c10',
-        pointHoverBorderWidth: 2,
-        tension: 0.3
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: 800, easing: 'easeInOutQuart' },
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          enabled: true,
-          backgroundColor: '#0d1117',
-          borderColor: color,
-          borderWidth: 1,
-          titleColor: '#d8eaf5',
-          bodyColor: '#e8edf2',
-          padding: 10,
-          displayColors: false,
-          titleFont: { family: "'Space Mono', monospace", size: 10 },
-          bodyFont: { family: "'DM Mono', monospace", size: 15, weight: '700' },
-          callbacks: {
-            title: items => items[0].label,
-            label: item => ' ' + Number(item.parsed.y).toLocaleString(undefined, { maximumFractionDigits: 2 })
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: { color: 'rgba(30,45,61,0.6)', drawBorder: false },
-          ticks: { maxTicksLimit: 6, maxRotation: 0 }
-        },
-        y: {
-          grid: { color: 'rgba(30,45,61,0.6)', drawBorder: false },
-          ticks: { maxTicksLimit: 5 },
-          position: 'right'
-        }
-      }
-    }
-  });
-}
-
-function makeSparkline(canvasId, data, color) {
-  const ctx = document.getElementById(canvasId)?.getContext('2d');
-  if (!ctx) return;
-  if (sparklines[canvasId]) sparklines[canvasId].destroy();
-  // Show only first, middle, last date labels
-  const n = data.length;
-  const tickLabels = data.map(() => '');
-  sparklines[canvasId] = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: tickLabels,
-      datasets: [{ data: data.map(d => d.value), borderColor: color, borderWidth: 1.5, backgroundColor: 'transparent', fill: false, pointRadius: 0, tension: 0.4 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: { duration: 600 },
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          enabled: true,
-          backgroundColor: '#0d1117',
-          borderColor: color,
-          borderWidth: 1,
-          titleColor: '#d8eaf5',
-          bodyColor: '#e8edf2',
-          padding: 8,
-          displayColors: false,
-          titleFont: { family: "'Space Mono', monospace", size: 9 },
-          bodyFont: { family: "'DM Mono', monospace", size: 12, weight: '700' },
-          callbacks: {
-            title: items => data[items[0].dataIndex]?.date ?? '',
-            label: item => ' ' + Number(item.parsed.y).toLocaleString(undefined, { maximumFractionDigits: 2 })
-          }
-        }
-      },
-      scales: {
-        x: { display: false },
-        y: { display: false }
-      }
-    }
-  });
-}
-
-// ─── UPDATE KPI CARD ─────────────────────────────────────
-function updateCard(name, rawObs) {
-  const obs = filterToTwoYears(rawObs);
-  if (obs.length < 2) return;
-  const cfg = FRED_SERIES[name];
-  const latest = obs[obs.length - 1];
-  const prior = obs[obs.length - 2];
-  const change = latest.value - prior.value;
-  const pct = (change / Math.abs(prior.value)) * 100;
-  const pos = change >= 0;
-
-  const valEl = document.getElementById(`val-${name}`);
-  const chgEl = document.getElementById(`chg-${name}`);
-  const dateEl = document.getElementById(`date-${name}`);
-
-  const tipEl = document.getElementById('tip-' + name);
-  if (tipEl) tipEl.textContent = cfg.desc || '';
-  valEl.classList.remove('loading-text');
-  valEl.innerHTML = `${latest.value.toLocaleString(undefined, { maximumFractionDigits: cfg.decimals })}<span class="kpi-unit">${cfg.unit}</span>`;
-  chgEl.className = `kpi-change ${pos ? 'pos' : 'neg'}`;
-  chgEl.textContent = `${pos ? '▲' : '▼'} ${Math.abs(change).toLocaleString(undefined, { maximumFractionDigits: cfg.decimals })} (${pct.toFixed(2)}%)`;
-  dateEl.textContent = cfg.freq;
-
-  const sparkSlice = obs;
-  const sparkColor = name === 'Unemployment' ? '#ff6b35' : name === 'M2' || name === '10Y_Yield' ? '#ffd700' : '#00d4ff';
-  makeSparkline(`spark-${name}`, sparkSlice, sparkColor);
-
-    // ── HEATMAP RULES ─────────────────────────────────────────
-  // Higher = good (green): GDP, Retail_Sales, Housing_Starts, M2
-  // Higher = bad  (red):   CPI, PPI, Unemployment, Jobless_Claims, CC_Delinquency, FedFunds, 10Y_Yield
-  // Spread: positive = green (healthy curve), negative = red (inverted)
-  const HIGHER_IS_GOOD = ['GDP', 'Retail_Sales', 'Housing_Starts', 'M2'];
-  const DUAL_ROW       = ['CPI', 'PPI', 'GDP', 'Retail_Sales', 'Housing_Starts', 'M2'];
-
-  function cellColor(val, seriesName, isChangePct) {
-    if (seriesName === 'Spread') return val >= 0 ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
-    if (isChangePct) {
-      const good = HIGHER_IS_GOOD.includes(seriesName) ? val >= 0 : val <= 0;
-      return good ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
-    }
-    return null;
-  }
-
-  function gradientColor(t, higherIsGood) {
-    const g = higherIsGood ? t : 1 - t;
-    if (g < 0.5) { const r = Math.round(180 + (0.5-g)*2*75); return 'rgba('+r+',40,60,0.4)'; }
-    else { const gr = Math.round(80 + (g-0.5)*2*150); return 'rgba(0,'+gr+',60,0.4)'; }
-  }
-
-  const tableObs9 = obs.slice(-9);
-  const wrap = document.getElementById('mini-table-' + name);
-  if (wrap && tableObs9.length >= 2) {
-
-    if (DUAL_ROW.includes(name)) {
-      const displayObs = tableObs9.slice(-8);
-      const headers = displayObs.map(d => { const p = d.date.split('-'); return '<th>' + p[1] + '/' + p[2].slice(0,2) + '/' + p[0].slice(2) + '</th>'; }).join('');
-
-      // MoM %
-      const momVals = displayObs.map((d, i) => {
-        const prior = tableObs9[tableObs9.length - 8 + i - 1];
-        return prior ? ((d.value - prior.value) / Math.abs(prior.value)) * 100 : null;
-      });
-      // Color each cell vs the previous cell — is this reading better or worse than last?
-      function trendColor(cur, prev, seriesName) {
-        if (prev === null || cur === null) return 'transparent';
-        const improved = HIGHER_IS_GOOD.includes(seriesName) ? cur > prev : cur < prev;
-        return improved ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
-      }
-
-      const momCells = momVals.map((v, i) => {
-        if (v === null) return '<td style="color:var(--muted)">–</td>';
-        const bg = trendColor(v, momVals[i-1] ?? null, name);
-        return '<td style="background:' + bg + '">' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%</td>';
-      }).join('');
-
-      // YoY %
-      const fullObs = seriesRawData[name] || obs;
-      const yoyVals = displayObs.map(d => {
-        const priorDate = (parseInt(d.date.slice(0,4))-1) + d.date.slice(4);
-        const prior = fullObs.find(p => p.date === priorDate) ||
-          fullObs.filter(p => p.date < d.date && p.date >= priorDate).slice(-1)[0];
-        return prior ? ((d.value - prior.value) / Math.abs(prior.value)) * 100 : null;
-      });
-      const yoyCells = yoyVals.map((v, i) => {
-        if (v === null) return '<td style="color:var(--muted)">–</td>';
-        const bg = trendColor(v, yoyVals[i-1] ?? null, name);
-        return '<td style="background:' + bg + '">' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%</td>';
-      }).join('');
-
-      wrap.innerHTML =
-        '<table class="mini-table"><thead><tr><th></th>' + headers + '</tr></thead><tbody>' +
-        '<tr><td style="color:var(--muted);font-size:8px;padding-right:6px;white-space:nowrap;">YoY</td>' + yoyCells + '</tr>' +
-        '</tbody></table>';
-
-    } else {
-      // Single raw value row with gradient
-      const displayObs = tableObs9.slice(-8);
-      const vals = displayObs.map(d => d.value);
-      const mn = Math.min(...vals), mx = Math.max(...vals), rng = mx - mn || 1;
-      const higherIsGood = HIGHER_IS_GOOD.includes(name);
-      const headers = displayObs.map(d => { const p = d.date.split('-'); return '<th>' + p[1] + '/' + p[2].slice(0,2) + '/' + p[0].slice(2) + '</th>'; }).join('');
-      const cells = displayObs.map((d, i) => {
-        const prev = i > 0 ? displayObs[i-1].value : null;
-        let bg;
-        if (prev === null) {
-          bg = 'transparent';
-        } else if (name === 'Spread') {
-          // Spread: getting more positive is good
-          bg = d.value > prev ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
-        } else {
-          const improved = higherIsGood ? d.value > prev : d.value < prev;
-          bg = improved ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
-        }
-        return '<td style="background:' + bg + '">' +
-          d.value.toLocaleString(undefined,{maximumFractionDigits:cfg.decimals}) + cfg.unit + '</td>';
-      }).join('');
-      wrap.innerHTML = '<table class="mini-table"><thead><tr>' + headers + '</tr></thead><tbody><tr>' + cells + '</tr></tbody></table>';
-    }
-  }
-}
-
-// ─── UPDATE TABLE ─────────────────────────────────────────
-
-
-// ─── MAIN FETCH ───────────────────────────────────────────
+// ─── INDEX-SPECIFIC FETCH (overrides shared fetchAll) ────
+// Adds ALFRED revision data for GDP, Retail Sales, Housing Starts.
 async function fetchAll() {
-  const btn = document.getElementById('refreshBtn');
-  const apiKey = '8eb474280a02991313279b06c726bba4';
+  const btn   = document.getElementById('refreshBtn');
   const errEl = document.getElementById('errorMsg');
-
   btn.classList.add('loading');
-  btn.textContent = '⟳ Loading…';
+  btn.textContent     = '⟳ Loading…';
   errEl.style.display = 'none';
 
-  const allFredData = {};
-  const marketData = {};
-  const errors = [];
+  const errors       = {};
+  const allFredData  = {};
 
-  // FRED — fetch all series in parallel, proxy fallback per series
-  if (apiKey) {
-    const fredNames = Object.keys(FRED_SERIES);
-    for (let i = 0; i < fredNames.length; i++) {
-      if (i > 0) await sleep(300);
-      const name = fredNames[i];
-      try {
-        const obs = await fetchFRED(FRED_SERIES[name].id, apiKey, 40);
-        seriesRawData[name] = obs;
-        allFredData[name] = obs;
-        updateCard(name, obs);
-      } catch(e) {
-        errors.push('FRED ' + FRED_SERIES[name].id + ': ' + e.message);
-        const el = document.getElementById('val-' + name);
-        if (el) { el.textContent = 'Error'; el.classList.add('loading-text'); }
-      }
+  // FRED series
+  const fredNames = Object.keys(FRED_SERIES);
+  for (let i = 0; i < fredNames.length; i++) {
+    if (i > 0) await sleep(300);
+    const name = fredNames[i];
+    try {
+      const obs = await fetchFRED(FRED_SERIES[name].id, 40);
+      seriesRawData[name] = obs;
+      allFredData[name]   = obs;
+      updateCard(name, obs);
+    } catch (e) {
+      errors['FRED ' + FRED_SERIES[name].id] = e.message;
+      const el = document.getElementById('val-' + name);
+      if (el) { el.textContent = 'Error'; el.classList.add('loading-text'); }
     }
   }
 
-
-
-  // ALFRED — fetch revision data for GDP, Retail Sales, Housing Starts
+  // ALFRED revision tags for GDP, Retail Sales, Housing Starts
   const revisionSeries = [
-    { name: 'GDP',           id: 'GDP',   decimals: 0, unit: 'B$' },
-    { name: 'Retail_Sales',  id: 'RSAFS', decimals: 0, unit: 'M$' },
-    { name: 'Housing_Starts',id: 'HOUST', decimals: 0, unit: 'K'  },
+    { name: 'GDP',            id: 'GDP',   decimals: 0, unit: 'B$' },
+    { name: 'Retail_Sales',   id: 'RSAFS', decimals: 0, unit: 'M$' },
+    { name: 'Housing_Starts', id: 'HOUST', decimals: 0, unit: 'K'  },
   ];
   for (const rs of revisionSeries) {
     try {
       await sleep(300);
-      // Get the latest observation date for this series
       const currentObs = allFredData[rs.name];
       if (!currentObs || currentObs.length < 1) continue;
-      const latestObs = currentObs[currentObs.length - 1];
-      const latestDate = latestObs.date;
-      const currentVal = latestObs.value;
-
-      // Find the first vintage date after the latest observation date
-      // ALFRED: get realtime_start = latestDate to get the initial release value
+      const latestDate = currentObs[currentObs.length - 1].date;
+      const currentVal = currentObs[currentObs.length - 1].value;
       const initUrl = 'https://api.stlouisfed.org/fred/series/observations' +
         '?series_id=' + rs.id +
-        '&api_key=' + apiKey +
+        '&api_key=' + FRED_API_KEY +
         '&file_type=json&sort_order=asc&limit=1' +
         '&observation_start=' + latestDate +
-        '&observation_end=' + latestDate +
-        '&realtime_start=' + latestDate +
-        '&realtime_end=' + latestDate;
+        '&observation_end='   + latestDate +
+        '&realtime_start='    + latestDate +
+        '&realtime_end='      + latestDate;
       const initJson = await fetchWithProxy(initUrl);
       if (!initJson.observations || initJson.observations.length === 0) continue;
       const initVal = parseFloat(initJson.observations[0].value);
       if (isNaN(initVal)) continue;
-
       const diff = currentVal - initVal;
-      const el = document.getElementById('revision-' + rs.name);
+      const el   = document.getElementById('revision-' + rs.name);
       if (!el) continue;
       if (Math.abs(diff) < 0.01) {
-        el.className = 'revision-tag flat';
+        el.className  = 'revision-tag flat';
         el.textContent = 'No revision';
       } else {
-        const pos = diff > 0;
-        el.className = 'revision-tag ' + (pos ? 'up' : 'down');
+        const pos      = diff > 0;
+        el.className   = 'revision-tag ' + (pos ? 'up' : 'down');
         el.textContent = 'Revised ' + (pos ? '+' : '') + diff.toFixed(rs.decimals) + rs.unit + ' from initial';
       }
       el.style.display = 'inline-block';
-    } catch(e) {
-      // revision fetch failing silently is fine
-    }
+    } catch (_) { /* silent — revision fetch is best-effort */ }
   }
 
-  // MARKET DATA — Yahoo Finance via proxy, fetched sequentially to avoid rate limits
-  const marketSymbols = ['^GSPC', 'CL=F', 'DX=F', '^VIX', 'GC=F', 'BTC-USD'];
+  // Market / Yahoo Finance
+  const marketSymbols = Object.keys(MARKET);
   for (let i = 0; i < marketSymbols.length; i++) {
-    if (i > 0) await sleep(600); // stagger requests so proxy doesn't rate limit
+    if (i > 0) await sleep(600);
     const sym = marketSymbols[i];
     const cfg = MARKET[sym];
     try {
       const obs = await fetchMarket(sym);
-      marketData[sym] = obs;
       if (obs.length > 1) {
         const latest = obs[obs.length - 1];
-        const prior = obs[obs.length - 2];
-        const pct = ((latest.value - prior.value) / Math.abs(prior.value) * 100);
-        const pos = pct >= 0;
-        document.getElementById(cfg.valId).textContent = latest.value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        const prior  = obs[obs.length - 2];
+        const pct    = ((latest.value - prior.value) / Math.abs(prior.value)) * 100;
+        const pos    = pct >= 0;
+        document.getElementById(cfg.valId).textContent =
+          latest.value.toLocaleString(undefined, { maximumFractionDigits: 2 });
         const chgEl = document.getElementById(cfg.chgId);
-        chgEl.textContent = (pos ? '+' : '') + pct.toFixed(2) + '%';
-        chgEl.style.color = pos ? 'var(--green)' : 'var(--red)';
+        if (chgEl) {
+          chgEl.textContent = (pos ? '+' : '') + pct.toFixed(2) + '%';
+          chgEl.style.color = pos ? 'var(--green)' : 'var(--red)';
+        }
         makeLineChart(cfg.canvasId, obs.map(d => d.date), obs.map(d => d.value), cfg.color);
       }
-    } catch(e) {
-      errors.push('Market data (' + cfg.label + '): ' + e.message);
+    } catch (e) {
+      errors['Market (' + cfg.label + ')'] = e.message;
       document.getElementById(cfg.valId).textContent = 'N/A';
-      document.getElementById(cfg.chgId).textContent = '–';
+      const chgEl = document.getElementById(cfg.chgId);
+      if (chgEl) chgEl.textContent = '–';
     }
   }
 
-  const now = new Date();
-  const ts = now.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  document.getElementById('last-updated').textContent = `Updated ${ts}`;
-  document.getElementById('footer-ts').textContent = `Last fetch: ${ts}`;
-
-  if (errors.length > 0) {
-    errEl.innerHTML = errors.map(e => '⚠ ' + e).join('<br>');
-    errEl.style.display = 'block';
-  }
-
-  btn.classList.remove('loading');
-  btn.textContent = '↻ Refresh';
-
-  // Schedule next auto-refresh
-  clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(fetchAll, REFRESH_INTERVAL);
+  _finishFetch(Object.entries(errors).map(([k, v]) => k + ': ' + v));
 }
-
-// ─── INIT ─────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.kpi-info').forEach(icon => {
-    const card = icon.closest('.kpi-card');
-    icon.addEventListener('mouseenter', () => card.classList.add('show-tip'));
-    icon.addEventListener('mouseleave', () => card.classList.remove('show-tip'));
-  });
-  fetchAll();
-  fetchCalendar();
-});
-
-
-// ─── ECONOMIC CALENDAR ───────────────────────────────────
-// Map FMP event names → frequency bar color
-const CAL_COLORS = {
-  'GDP':                       '#ffd700',
-  'Gross Domestic Product':    '#ffd700',
-  'Initial Jobless Claims':    '#a78bfa',
-  'Jobless Claims':            '#a78bfa',
-  'CPI':                       '#00ff9d',
-  'Consumer Price Index':      '#00ff9d',
-  'PPI':                       '#00ff9d',
-  'Producer Price Index':      '#00ff9d',
-  'Retail Sales':              '#00ff9d',
-  'Housing Starts':            '#00ff9d',
-  'Unemployment Rate':         '#00ff9d',
-  'Nonfarm Payrolls':          '#00ff9d',
-  'PCE':                       '#00ff9d',
-  'Personal Consumption':      '#00ff9d',
-  'Fed Interest Rate Decision':'#ff3b5c',
-  'FOMC':                      '#ff3b5c',
-  'Federal Reserve':           '#ff3b5c',
-  'ISM':                       '#00d4ff',
-  'Treasury':                  '#00d4ff',
-};
-
-function getCalColor(name) {
-  for (const [key, color] of Object.entries(CAL_COLORS)) {
-    if (name.toLowerCase().includes(key.toLowerCase())) return color;
-  }
-  return '#5a7a94';
-}
-
-function isFOMC(name) {
-  return name.toLowerCase().includes('fed') ||
-         name.toLowerCase().includes('fomc') ||
-         name.toLowerCase().includes('interest rate decision');
-}
-
-function formatCalDate(dateStr) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function formatCalTime(timeStr) {
-  if (!timeStr) return '';
-  // timeStr like "08:30" or "08:30:00"
-  const [h, m] = timeStr.split(':');
-  const hour = parseInt(h);
-  const ampm = hour >= 12 ? 'pm' : 'am';
-  const h12 = hour % 12 || 12;
-  return h12 + ':' + m + ' ' + ampm + ' ET';
-}
-
-// ─── 2026 US ECONOMIC CALENDAR (hardcoded) ───────────────
-// Sources: BLS, Census Bureau, BEA, Federal Reserve
-// Update each January with the new year's release schedule
-const CALENDAR_2026 = [
-  // JANUARY
-  { date: '2026-01-07', time: '08:30', event: 'ADP Employment Report',        freq: 'MoM', source: 'ADP',           impact: false },
-  { date: '2026-01-08', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-01-09', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-01-09', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-01-15', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-01-15', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-01-16', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-01-17', time: '09:15', event: 'Industrial Production',         freq: 'MoM', source: 'Federal Reserve',impact: false },
-  { date: '2026-01-22', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-01-27', time: '08:30', event: 'GDP Advance Estimate Q4 2025', freq: 'QoQ', source: 'BEA',            impact: true  },
-  { date: '2026-01-28', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-  { date: '2026-01-28', time: '10:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
-  { date: '2026-01-29', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-01-30', time: '10:00', event: 'Consumer Sentiment (UMich)',    freq: 'MoM', source: 'U of Michigan', impact: false },
-
-  // FEBRUARY
-  { date: '2026-02-05', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-02-06', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-02-06', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-02-11', time: '10:00', event: 'Consumer Sentiment (UMich)',    freq: 'MoM', source: 'U of Michigan', impact: false },
-  { date: '2026-02-12', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-02-12', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-02-13', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-02-17', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
-  { date: '2026-02-18', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
-  { date: '2026-02-19', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-02-26', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-  { date: '2026-02-26', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-02-27', time: '08:30', event: 'GDP Second Estimate Q4 2025',  freq: 'QoQ', source: 'BEA',            impact: false },
-
-  // MARCH
-  { date: '2026-03-05', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-03-06', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-03-06', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-03-11', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-03-12', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-03-13', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-03-17', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
-  { date: '2026-03-18', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
-  { date: '2026-03-18', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
-  { date: '2026-03-19', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-03-26', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-03-27', time: '08:30', event: 'GDP Third Estimate Q4 2025',   freq: 'QoQ', source: 'BEA',            impact: false },
-  { date: '2026-03-27', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-
-  // APRIL
-  { date: '2026-04-02', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-04-03', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-04-03', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-04-10', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-04-09', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-04-14', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-04-15', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
-  { date: '2026-04-16', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
-  { date: '2026-04-16', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-04-23', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-04-29', time: '08:30', event: 'GDP Advance Estimate Q1 2026', freq: 'QoQ', source: 'BEA',            impact: true  },
-  { date: '2026-04-30', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-  { date: '2026-04-29', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
-
-  // MAY
-  { date: '2026-05-07', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-05-08', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-05-08', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-05-13', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-05-14', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-05-14', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-05-15', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
-  { date: '2026-05-19', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
-  { date: '2026-05-21', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-05-28', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-05-29', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-
-  // JUNE
-  { date: '2026-06-04', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-06-05', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-06-05', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-06-10', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-06-11', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-06-11', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-06-16', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
-  { date: '2026-06-17', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
-  { date: '2026-06-17', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
-  { date: '2026-06-18', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-06-25', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-06-26', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-
-  // JULY
-  { date: '2026-07-02', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-07-02', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-07-02', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-07-09', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-07-14', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-07-15', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-07-15', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
-  { date: '2026-07-16', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-07-17', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
-  { date: '2026-07-23', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-07-28', time: '08:30', event: 'GDP Advance Estimate Q2 2026', freq: 'QoQ', source: 'BEA',            impact: true  },
-  { date: '2026-07-29', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
-  { date: '2026-07-30', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-07-31', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-
-  // AUGUST
-  { date: '2026-08-06', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-08-07', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-08-07', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-08-12', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-08-13', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-08-13', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-08-14', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
-  { date: '2026-08-18', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
-  { date: '2026-08-20', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-08-27', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-08-28', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-
-  // SEPTEMBER
-  { date: '2026-09-03', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-09-04', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-09-04', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-09-10', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-09-10', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-09-11', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-09-15', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
-  { date: '2026-09-16', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
-  { date: '2026-09-16', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
-  { date: '2026-09-17', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-09-24', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-09-25', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-
-  // OCTOBER
-  { date: '2026-10-01', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-10-02', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-10-02', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-10-08', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-10-14', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-10-15', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-10-15', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-10-16', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
-  { date: '2026-10-20', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
-  { date: '2026-10-22', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-10-28', time: '08:30', event: 'GDP Advance Estimate Q3 2026', freq: 'QoQ', source: 'BEA',            impact: true  },
-  { date: '2026-10-28', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
-  { date: '2026-10-29', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-10-30', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-
-  // NOVEMBER
-  { date: '2026-11-05', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-11-06', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-11-06', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-11-12', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-11-12', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-11-13', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-11-17', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
-  { date: '2026-11-18', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
-  { date: '2026-11-19', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-11-25', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-  { date: '2026-11-26', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-
-  // DECEMBER
-  { date: '2026-12-03', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-12-04', time: '08:30', event: 'Nonfarm Payrolls',              freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-12-04', time: '08:30', event: 'Unemployment Rate',             freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-12-09', time: '08:30', event: 'Consumer Price Index (CPI)',    freq: 'MoM', source: 'BLS',           impact: true  },
-  { date: '2026-12-10', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-12-10', time: '08:30', event: 'Producer Price Index (PPI)',    freq: 'MoM', source: 'BLS',           impact: false },
-  { date: '2026-12-15', time: '08:30', event: 'Retail Sales',                  freq: 'MoM', source: 'Census Bureau', impact: true  },
-  { date: '2026-12-16', time: '08:30', event: 'Housing Starts',                freq: 'MoM', source: 'Census Bureau', impact: false },
-  { date: '2026-12-16', time: '14:00', event: 'FOMC Rate Decision',            freq: 'Fed',  source: 'Federal Reserve',impact: true },
-  { date: '2026-12-17', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-  { date: '2026-12-22', time: '08:30', event: 'GDP Third Estimate Q3 2026',   freq: 'QoQ', source: 'BEA',            impact: false },
-  { date: '2026-12-23', time: '08:30', event: 'PCE Price Index',               freq: 'MoM', source: 'BEA',           impact: true  },
-  { date: '2026-12-24', time: '08:30', event: 'Initial Jobless Claims',        freq: 'WoW', source: 'Dept of Labor', impact: false },
-];
-
-const FREQ_COLORS = {
-  'DoD': '#00d4ff', 'WoW': '#a78bfa', 'MoM': '#00ff9d', 'QoQ': '#ffd700', 'Fed': '#ff3b5c'
-};
-
-function fetchCalendar() {
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const future = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const events = CALENDAR_2026.filter(e => e.date >= today && e.date <= future);
-  renderCalendar(events, today, future);
-}
-
-function renderCalendar(events, from, to) {
-  const filtered = [...events].sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  const rangeEl = document.getElementById('cal-range');
-  if (rangeEl) rangeEl.textContent = formatCalDate(from) + ' — ' + formatCalDate(to);
-
-  const grid = document.getElementById('calendarGrid');
-  if (!grid) return;
-
-  if (filtered.length === 0) {
-    grid.innerHTML = '<div class="cal-empty">No events in the next 14 days.</div>';
-    return;
-  }
-
-  let html = '';
-  filtered.forEach((ev, idx) => {
-    const isLast = idx === filtered.length - 1;
-    const lastClass = isLast ? ' cal-grid-last' : '';
-    const fomc = ev.freq === 'Fed';
-    const fomcClass = fomc ? ' cal-fomc' : '';
-    const color = FREQ_COLORS[ev.freq] || '#5a7a94';
-    const dateStr = formatCalDate(ev.date);
-    const timeStr = ev.time ? formatCalTime(ev.time) : '';
-
-    const now = new Date();
-    const evParts = ev.date.split('-').map(Number);
-    const daysAway = Math.round((new Date(evParts[0], evParts[1]-1, evParts[2]) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000) - 1;
-    const daysColor = daysAway === 0 ? 'var(--accent2)' : daysAway <= 3 ? 'var(--warn)' : 'var(--text)';
-    const daysLabel = daysAway === 0 ? 'today' : daysAway === 1 ? 'day' : 'days';
-
-    html += '<div class="cal-date' + lastClass + fomcClass + '">' +
-      '<div class="cal-date-day">' + dateStr + '</div>' +
-      (timeStr ? '<div class="cal-date-time">' + timeStr + '</div>' : '') +
-      '</div>';
-
-    html += '<div class="cal-days' + lastClass + fomcClass + '">' +
-      '<div class="cal-days-num" style="color:' + daysColor + ';">' + (daysAway === 0 ? '–' : daysAway) + '</div>' +
-      '<div class="cal-days-label">' + daysLabel + '</div>' +
-      '</div>';
-
-    html += '<div class="cal-event' + fomcClass + lastClass + '">' +
-      '<span class="cal-bar" style="background:' + color + ';"></span>' +
-      '<div>' +
-        '<div class="cal-name">' + ev.event + '</div>' +
-        '<div class="cal-sub">' + ev.source + ' · ' + ev.freq + '</div>' +
-      '</div>' +
-      (ev.impact ? '<span class="cal-impact" style="margin-left:auto;">HIGH IMPACT</span>' : '') +
-      '</div>';
-
-    html += '<div class="cal-prev' + fomcClass + lastClass + '">' +
-      '<div style="text-align:right;">' +
-        '<div class="cal-prev-label">' + ev.freq + '</div>' +
-      '</div>' +
-      '</div>';
-  });
-
-  grid.innerHTML = html;
-}
-
 </script>
 
 
