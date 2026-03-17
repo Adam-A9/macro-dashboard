@@ -1218,15 +1218,6 @@
 <nav class="nav-bar"><a href="index.html" class="nav-link">Macro</a><a href="inflation.html" class="nav-link">Inflation</a><a href="housing.html" class="nav-link">Housing</a><a href="labor.html" class="nav-link active">Labor</a><a href="markets.html" class="nav-link">Markets</a></nav>
 <main class="main">
   <div class="error-msg" id="errorMsg"></div>
-  <div class="kpi-card" id="card-Unemployment" data-freq="mom">
-    <div class="kpi-label">Unemployment Rate <span class="kpi-series-id">UNRATE</span><span class="kpi-info">?</span></div>
-    <div class="kpi-tooltip" id="tip-Unemployment"></div>
-    <div class="kpi-value loading-text" id="val-Unemployment">Loading…</div>
-    <div class="kpi-change neutral" id="chg-Unemployment">–</div>
-    <div class="kpi-date" id="date-Unemployment">–</div>
-    <div class="sparkline-wrap"><canvas id="spark-Unemployment"></canvas></div>
-    <div class="mini-table-wrap" id="mini-table-Unemployment"></div>
-  </div>
   <div class="kpi-card" id="card-JoblessClaims" data-freq="wow">
     <div class="kpi-label">Initial Jobless Claims <span class="kpi-series-id">ICSA</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-JoblessClaims"></div>
@@ -1236,7 +1227,8 @@
     <div class="sparkline-wrap"><canvas id="spark-JoblessClaims"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-JoblessClaims"></div>
   </div>
-  <div class="kpi-card" id="card-ContClaims" data-freq="wow">
+
+<div class="kpi-card" id="card-ContClaims" data-freq="wow">
     <div class="kpi-label">Continuing Claims <span class="kpi-series-id">CCSA</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-ContClaims"></div>
     <div class="kpi-value loading-text" id="val-ContClaims">Loading…</div>
@@ -1245,7 +1237,18 @@
     <div class="sparkline-wrap"><canvas id="spark-ContClaims"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-ContClaims"></div>
   </div>
-  <div class="kpi-card" id="card-LFPR" data-freq="mom">
+
+<div class="kpi-card" id="card-Unemployment" data-freq="mom">
+    <div class="kpi-label">Unemployment Rate <span class="kpi-series-id">UNRATE</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-Unemployment"></div>
+    <div class="kpi-value loading-text" id="val-Unemployment">Loading…</div>
+    <div class="kpi-change neutral" id="chg-Unemployment">–</div>
+    <div class="kpi-date" id="date-Unemployment">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-Unemployment"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-Unemployment"></div>
+  </div>
+
+<div class="kpi-card" id="card-LFPR" data-freq="mom">
     <div class="kpi-label">Labor Force Participation <span class="kpi-series-id">CIVPART</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-LFPR"></div>
     <div class="kpi-value loading-text" id="val-LFPR">Loading…</div>
@@ -1254,7 +1257,8 @@
     <div class="sparkline-wrap"><canvas id="spark-LFPR"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-LFPR"></div>
   </div>
-  <div class="kpi-card" id="card-JOLTS" data-freq="mom">
+
+<div class="kpi-card" id="card-JOLTS" data-freq="mom">
     <div class="kpi-label">Job Openings (JOLTS) <span class="kpi-series-id">JTSJOL</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-JOLTS"></div>
     <div class="kpi-value loading-text" id="val-JOLTS">Loading…</div>
@@ -1263,7 +1267,8 @@
     <div class="sparkline-wrap"><canvas id="spark-JOLTS"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-JOLTS"></div>
   </div>
-  <div class="kpi-card" id="card-AHE" data-freq="mom">
+
+<div class="kpi-card" id="card-AHE" data-freq="mom">
     <div class="kpi-label">Avg Hourly Earnings <span class="kpi-series-id">CES0500000003</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-AHE"></div>
     <div class="kpi-value loading-text" id="val-AHE">Loading…</div>
@@ -1272,7 +1277,8 @@
     <div class="sparkline-wrap"><canvas id="spark-AHE"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-AHE"></div>
   </div>
-  <div class="kpi-card" id="card-Underemployment" data-freq="mom">
+
+<div class="kpi-card" id="card-Underemployment" data-freq="mom">
     <div class="kpi-label">Underemployment U-6 <span class="kpi-series-id">U6RATE</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-Underemployment"></div>
     <div class="kpi-value loading-text" id="val-Underemployment">Loading…</div>
@@ -1281,7 +1287,8 @@
     <div class="sparkline-wrap"><canvas id="spark-Underemployment"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-Underemployment"></div>
   </div>
-  <div class="kpi-card" id="card-NFP" data-freq="mom">
+
+<div class="kpi-card" id="card-NFP" data-freq="mom">
     <div class="kpi-label">Nonfarm Payrolls <span class="kpi-series-id">PAYEMS</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-NFP"></div>
     <div class="kpi-value loading-text" id="val-NFP">Loading…</div>
@@ -1290,7 +1297,8 @@
     <div class="sparkline-wrap"><canvas id="spark-NFP"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-NFP"></div>
   </div>
-  <div class="kpi-card" id="card-QuitRate" data-freq="mom">
+
+<div class="kpi-card" id="card-QuitRate" data-freq="mom">
     <div class="kpi-label">Quit Rate <span class="kpi-series-id">JTSQUR</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-QuitRate"></div>
     <div class="kpi-value loading-text" id="val-QuitRate">Loading…</div>
@@ -1299,6 +1307,7 @@
     <div class="sparkline-wrap"><canvas id="spark-QuitRate"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-QuitRate"></div>
   </div>
+
 
   <div class="section-label" style="grid-column:1/-1;">// Market Charts</div>
   <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -1339,6 +1348,14 @@ function filterToTwoYears(obs) {
   const now = new Date();
   const cutoff = (now.getFullYear() - 2) + '-01-01';
   return obs.filter(d => d.date >= cutoff);
+}
+
+function parseFREDJson(json) {
+  if (!json.observations) throw new Error('No observations in response');
+  return json.observations
+    .filter(o => o.value !== "." && o.value !== "")
+    .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+    .reverse();
 }
 
 async function fetchWithProxy(url) {
@@ -1503,6 +1520,14 @@ function makeSparkline(canvasId, data, color) {
   });
 }
 
+
+function parseFREDJson(json) {
+  if (!json.observations) throw new Error('No observations in response');
+  return json.observations
+    .filter(o => o.value !== "." && o.value !== "")
+    .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+    .reverse();
+}
 
 async function fetchWithProxy(url) {
   const proxy = 'https://quiet-moon-b6d5.adamaun9.workers.dev/?url=' + encodeURIComponent(url);
@@ -1776,6 +1801,11 @@ async function fetchAll() {
   clearTimeout(refreshTimer); refreshTimer=setTimeout(fetchAll,REFRESH_INTERVAL);
 }
 window.addEventListener('DOMContentLoaded', () => {
+  // Populate tooltips immediately from config — don't wait for API
+  Object.keys(FRED_SERIES).forEach(name => {
+    const tip = document.getElementById('tip-' + name);
+    if (tip && FRED_SERIES[name].desc) tip.textContent = FRED_SERIES[name].desc;
+  });
   document.querySelectorAll('.kpi-info').forEach(icon => {
     const card = icon.closest('.kpi-card');
     icon.addEventListener('mouseenter', () => card.classList.add('show-tip'));

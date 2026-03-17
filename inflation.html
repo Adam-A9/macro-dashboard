@@ -1221,51 +1221,6 @@
 
 <main class="main">
   <div class="error-msg" id="errorMsg"></div>
-  <div class="kpi-card" id="card-CPI" data-freq="mom">
-    <div class="kpi-label">CPI (All Urban) <span class="kpi-series-id">CPIAUCSL</span><span class="kpi-info">?</span></div>
-    <div class="kpi-tooltip" id="tip-CPI"></div>
-    <div class="kpi-value loading-text" id="val-CPI">Loading…</div>
-    <div class="kpi-change neutral" id="chg-CPI">–</div>
-    <div class="kpi-date" id="date-CPI">–</div>
-    <div class="sparkline-wrap"><canvas id="spark-CPI"></canvas></div>
-    <div class="mini-table-wrap" id="mini-table-CPI"></div>
-  </div>
-  <div class="kpi-card" id="card-CoreCPI" data-freq="mom">
-    <div class="kpi-label">Core CPI <span class="kpi-series-id">CPILFESL</span><span class="kpi-info">?</span></div>
-    <div class="kpi-tooltip" id="tip-CoreCPI"></div>
-    <div class="kpi-value loading-text" id="val-CoreCPI">Loading…</div>
-    <div class="kpi-change neutral" id="chg-CoreCPI">–</div>
-    <div class="kpi-date" id="date-CoreCPI">–</div>
-    <div class="sparkline-wrap"><canvas id="spark-CoreCPI"></canvas></div>
-    <div class="mini-table-wrap" id="mini-table-CoreCPI"></div>
-  </div>
-  <div class="kpi-card" id="card-PCE" data-freq="mom">
-    <div class="kpi-label">PCE Price Index <span class="kpi-series-id">PCEPI</span><span class="kpi-info">?</span></div>
-    <div class="kpi-tooltip" id="tip-PCE"></div>
-    <div class="kpi-value loading-text" id="val-PCE">Loading…</div>
-    <div class="kpi-change neutral" id="chg-PCE">–</div>
-    <div class="kpi-date" id="date-PCE">–</div>
-    <div class="sparkline-wrap"><canvas id="spark-PCE"></canvas></div>
-    <div class="mini-table-wrap" id="mini-table-PCE"></div>
-  </div>
-  <div class="kpi-card" id="card-CorePCE" data-freq="mom">
-    <div class="kpi-label">Core PCE <span class="kpi-series-id">PCEPILFE</span><span class="kpi-info">?</span></div>
-    <div class="kpi-tooltip" id="tip-CorePCE"></div>
-    <div class="kpi-value loading-text" id="val-CorePCE">Loading…</div>
-    <div class="kpi-change neutral" id="chg-CorePCE">–</div>
-    <div class="kpi-date" id="date-CorePCE">–</div>
-    <div class="sparkline-wrap"><canvas id="spark-CorePCE"></canvas></div>
-    <div class="mini-table-wrap" id="mini-table-CorePCE"></div>
-  </div>
-  <div class="kpi-card" id="card-PPI" data-freq="mom">
-    <div class="kpi-label">Producer Price Index <span class="kpi-series-id">PPIACO</span><span class="kpi-info">?</span></div>
-    <div class="kpi-tooltip" id="tip-PPI"></div>
-    <div class="kpi-value loading-text" id="val-PPI">Loading…</div>
-    <div class="kpi-change neutral" id="chg-PPI">–</div>
-    <div class="kpi-date" id="date-PPI">–</div>
-    <div class="sparkline-wrap"><canvas id="spark-PPI"></canvas></div>
-    <div class="mini-table-wrap" id="mini-table-PPI"></div>
-  </div>
   <div class="kpi-card" id="card-Breakeven5" data-freq="dod">
     <div class="kpi-label">5Y Breakeven Inflation <span class="kpi-series-id">T5YIE</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-Breakeven5"></div>
@@ -1275,7 +1230,8 @@
     <div class="sparkline-wrap"><canvas id="spark-Breakeven5"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-Breakeven5"></div>
   </div>
-  <div class="kpi-card" id="card-Breakeven10" data-freq="dod">
+
+<div class="kpi-card" id="card-Breakeven10" data-freq="dod">
     <div class="kpi-label">10Y Breakeven Inflation <span class="kpi-series-id">T10YIE</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-Breakeven10"></div>
     <div class="kpi-value loading-text" id="val-Breakeven10">Loading…</div>
@@ -1284,7 +1240,58 @@
     <div class="sparkline-wrap"><canvas id="spark-Breakeven10"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-Breakeven10"></div>
   </div>
-  <div class="kpi-card" id="card-M2" data-freq="mom">
+
+<div class="kpi-card" id="card-CPI" data-freq="mom">
+    <div class="kpi-label">CPI (All Urban) <span class="kpi-series-id">CPIAUCSL</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-CPI"></div>
+    <div class="kpi-value loading-text" id="val-CPI">Loading…</div>
+    <div class="kpi-change neutral" id="chg-CPI">–</div>
+    <div class="kpi-date" id="date-CPI">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-CPI"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-CPI"></div>
+  </div>
+
+<div class="kpi-card" id="card-CoreCPI" data-freq="mom">
+    <div class="kpi-label">Core CPI <span class="kpi-series-id">CPILFESL</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-CoreCPI"></div>
+    <div class="kpi-value loading-text" id="val-CoreCPI">Loading…</div>
+    <div class="kpi-change neutral" id="chg-CoreCPI">–</div>
+    <div class="kpi-date" id="date-CoreCPI">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-CoreCPI"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-CoreCPI"></div>
+  </div>
+
+<div class="kpi-card" id="card-PCE" data-freq="mom">
+    <div class="kpi-label">PCE Price Index <span class="kpi-series-id">PCEPI</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-PCE"></div>
+    <div class="kpi-value loading-text" id="val-PCE">Loading…</div>
+    <div class="kpi-change neutral" id="chg-PCE">–</div>
+    <div class="kpi-date" id="date-PCE">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-PCE"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-PCE"></div>
+  </div>
+
+<div class="kpi-card" id="card-CorePCE" data-freq="mom">
+    <div class="kpi-label">Core PCE <span class="kpi-series-id">PCEPILFE</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-CorePCE"></div>
+    <div class="kpi-value loading-text" id="val-CorePCE">Loading…</div>
+    <div class="kpi-change neutral" id="chg-CorePCE">–</div>
+    <div class="kpi-date" id="date-CorePCE">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-CorePCE"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-CorePCE"></div>
+  </div>
+
+<div class="kpi-card" id="card-PPI" data-freq="mom">
+    <div class="kpi-label">Producer Price Index <span class="kpi-series-id">PPIACO</span><span class="kpi-info">?</span></div>
+    <div class="kpi-tooltip" id="tip-PPI"></div>
+    <div class="kpi-value loading-text" id="val-PPI">Loading…</div>
+    <div class="kpi-change neutral" id="chg-PPI">–</div>
+    <div class="kpi-date" id="date-PPI">–</div>
+    <div class="sparkline-wrap"><canvas id="spark-PPI"></canvas></div>
+    <div class="mini-table-wrap" id="mini-table-PPI"></div>
+  </div>
+
+<div class="kpi-card" id="card-M2" data-freq="mom">
     <div class="kpi-label">M2 Money Supply <span class="kpi-series-id">M2SL</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-M2"></div>
     <div class="kpi-value loading-text" id="val-M2">Loading…</div>
@@ -1293,7 +1300,8 @@
     <div class="sparkline-wrap"><canvas id="spark-M2"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-M2"></div>
   </div>
-  <div class="kpi-card" id="card-RealRates" data-freq="mom">
+
+<div class="kpi-card" id="card-RealRates" data-freq="mom">
     <div class="kpi-label">Real Interest Rate <span class="kpi-series-id">REAINTRATREARAT10Y</span><span class="kpi-info">?</span></div>
     <div class="kpi-tooltip" id="tip-RealRates"></div>
     <div class="kpi-value loading-text" id="val-RealRates">Loading…</div>
@@ -1302,6 +1310,7 @@
     <div class="sparkline-wrap"><canvas id="spark-RealRates"></canvas></div>
     <div class="mini-table-wrap" id="mini-table-RealRates"></div>
   </div>
+
 
   <div class="section-label" style="grid-column:1/-1;">// Market Charts</div>
   <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -1344,6 +1353,14 @@ function filterToTwoYears(obs) {
   const now = new Date();
   const cutoff = (now.getFullYear() - 2) + '-01-01';
   return obs.filter(d => d.date >= cutoff);
+}
+
+function parseFREDJson(json) {
+  if (!json.observations) throw new Error('No observations in response');
+  return json.observations
+    .filter(o => o.value !== "." && o.value !== "")
+    .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+    .reverse();
 }
 
 async function fetchWithProxy(url) {
@@ -1508,6 +1525,14 @@ function makeSparkline(canvasId, data, color) {
   });
 }
 
+
+function parseFREDJson(json) {
+  if (!json.observations) throw new Error('No observations in response');
+  return json.observations
+    .filter(o => o.value !== "." && o.value !== "")
+    .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+    .reverse();
+}
 
 async function fetchWithProxy(url) {
   const proxy = 'https://quiet-moon-b6d5.adamaun9.workers.dev/?url=' + encodeURIComponent(url);
@@ -1815,6 +1840,11 @@ async function fetchAll() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  // Populate tooltips immediately from config — don't wait for API
+  Object.keys(FRED_SERIES).forEach(name => {
+    const tip = document.getElementById('tip-' + name);
+    if (tip && FRED_SERIES[name].desc) tip.textContent = FRED_SERIES[name].desc;
+  });
   document.querySelectorAll('.kpi-info').forEach(icon => {
     const card = icon.closest('.kpi-card');
     icon.addEventListener('mouseenter', () => card.classList.add('show-tip'));
