@@ -363,6 +363,151 @@
     margin-top: 4px;
   }
 
+  /* ── KPI EXPAND MODAL ───────────────────────────────────── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .kpi-modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    z-index: 1001;
+    width: 90vw;
+    max-width: 860px;
+    max-height: 90vh;
+    overflow-y: auto;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+  .kpi-modal.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px 24px 0;
+  }
+  .modal-title {
+    font-family: 'DM Mono', monospace;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .modal-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 4px;
+  }
+  .modal-value {
+    font-family: 'DM Mono', monospace;
+    font-weight: 700;
+    font-size: 32px;
+    color: var(--text);
+    padding: 8px 24px 0;
+    line-height: 1;
+  }
+  .modal-change-row {
+    padding: 4px 24px 16px;
+  }
+  .modal-close {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    width: 36px; height: 36px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .modal-close:hover {
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .modal-chart-wrap {
+    padding: 0 24px;
+    height: 340px;
+    position: relative;
+  }
+  .modal-table-wrap {
+    padding: 16px 24px;
+  }
+  .modal-table-wrap .mini-table {
+    font-size: 12px;
+  }
+  .modal-table-wrap .mini-table th,
+  .modal-table-wrap .mini-table td {
+    padding: 6px 10px;
+  }
+  .modal-recession-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 24px 8px;
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+  }
+  .modal-recession-swatch {
+    width: 20px;
+    height: 10px;
+    background: rgba(255,59,92,0.18);
+    border: 1px solid rgba(255,59,92,0.35);
+  }
+  .modal-desc {
+    padding: 0 24px 20px;
+    color: var(--muted2);
+    font-size: 11px;
+    line-height: 1.7;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+    padding-top: 14px;
+  }
+
+  @media (max-width: 768px) {
+    .kpi-modal {
+      width: 96vw;
+      max-height: 94vh;
+    }
+    .modal-title { font-size: 14px; }
+    .modal-value { font-size: 24px; }
+    .modal-chart-wrap { height: 240px; padding: 0 12px; }
+    .modal-header { padding: 14px 12px 0; }
+    .modal-value { padding: 6px 12px 0; }
+    .modal-change-row { padding: 4px 12px 12px; }
+    .modal-table-wrap { padding: 12px; }
+    .modal-table-wrap .mini-table { font-size: 10px; }
+    .modal-table-wrap .mini-table th,
+    .modal-table-wrap .mini-table td { padding: 4px 6px; }
+    .modal-recession-legend { padding: 0 12px 6px; }
+    .modal-desc { padding: 0 12px 16px; padding-top: 12px; }
+  }
+
   canvas { display: block; }
 
   /* Staggered animation delays */
@@ -382,34 +527,38 @@
     .header {
       padding: 0 12px;
       height: auto;
-      min-height: 52px;
+      min-height: 48px;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
       padding-top: 8px;
       padding-bottom: 8px;
     }
     .logo { font-size: 14px; }
-    .header-right { gap: 12px; flex-wrap: wrap; }
+    .header-right { gap: 10px; flex-wrap: wrap; }
     #last-updated { display: none; }
 
-    /* Main grid → single column */
+    /* Main grid → single column stacked cards */
     .main {
       grid-template-columns: 1fr;
-      padding: 12px;
-      gap: 10px;
+      padding: 10px;
+      gap: 8px;
     }
 
-    /* KPI cards — full width, more compact */
+    /* KPI cards — full width, compact but readable */
     .kpi-card {
-      padding: 12px;
+      padding: 14px 12px;
     }
-    .kpi-value { font-size: 22px !important; }
-    .sparkline-wrap { height: 44px; }
+    .kpi-label { font-size: 9px; margin-bottom: 6px; }
+    .kpi-value { font-size: 24px !important; }
+    .kpi-change { font-size: 11px; }
+    .kpi-date { font-size: 9px; }
+    .sparkline-wrap { height: 48px; margin-top: 8px; }
     .mini-table { font-size: 9px; }
-    .mini-table th, .mini-table td { padding: 2px 4px; }
+    .mini-table th, .mini-table td { padding: 3px 4px; }
+    .mini-table-wrap { margin-top: 6px; }
 
     /* Section labels */
-    .section-label { grid-column: 1 / -1; }
+    .section-label { grid-column: 1 / -1; font-size: 9px; margin-top: 2px; }
 
     /* Market + FRED charts → single column */
     div[style*="grid-template-columns:1fr 1fr"] {
@@ -419,9 +568,12 @@
     /* Chart panels */
     .chart-panel { padding: 12px; }
     .panel-title { font-size: 11px; }
+    .panel-sub { font-size: 8px; }
+    .panel-header span[style*="font-size:18px"] { font-size: 15px !important; }
+    .chart-container { height: 130px !important; }
 
     /* Tooltip overlay — slightly smaller text on mobile */
-    .kpi-tooltip { font-size: 10px; padding: 10px; }
+    .kpi-tooltip { font-size: 10px; padding: 10px; line-height: 1.6; }
 
     /* Footer */
     .footer {
@@ -429,6 +581,7 @@
       gap: 4px;
       text-align: center;
       padding: 10px 12px;
+      font-size: 9px;
     }
 
     /* Error msg */
@@ -442,6 +595,9 @@
     .logo span { display: none; }
     .kpi-value { font-size: 20px !important; }
     .live-badge span:last-child { display: none; }
+    .kpi-series-id { font-size: 7px; }
+    .kpi-info { width: 12px; height: 12px; font-size: 8px; }
+    .main { padding: 8px; gap: 6px; }
   }
 
   /* ── ECONOMIC CALENDAR ─────────────────────────────────── */
@@ -1016,5 +1172,30 @@ async function fetchAll() {
     <div class="cal-legend-item"><div class="cal-dot" style="background:#ff3b5c;"></div>FOMC</div>
   </div>
 </div>
+
+<!-- KPI Expand Modal -->
+<div class="modal-overlay" id="kpi-modal-overlay"></div>
+<div class="kpi-modal" id="kpi-modal">
+  <div class="modal-header">
+    <div>
+      <div class="modal-title" id="modal-title">–</div>
+      <div class="modal-meta">
+        <span class="kpi-series-id" id="modal-series">–</span>
+        <span style="color:var(--muted);font-size:9px;letter-spacing:0.1em;" id="modal-freq">–</span>
+      </div>
+    </div>
+    <button class="modal-close" id="modal-close-btn">✕</button>
+  </div>
+  <div class="modal-value" id="modal-value">–</div>
+  <div class="modal-change-row"><span class="kpi-change neutral" id="modal-change">–</span></div>
+  <div class="modal-chart-wrap"><canvas id="modal-chart-canvas"></canvas></div>
+  <div class="modal-recession-legend" id="modal-recession-legend" style="display:none;">
+    <div class="modal-recession-swatch"></div>
+    NBER Recession
+  </div>
+  <div class="modal-table-wrap" id="modal-table"></div>
+  <div class="modal-desc" id="modal-desc"></div>
+</div>
+
 </body>
 </html>
