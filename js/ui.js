@@ -1,24 +1,8 @@
 // ─── HEATMAP HELPERS ─────────────────────────────────────
 // These reference HIGHER_IS_GOOD defined per-page in the inline script.
 
-function cellColor(val, sName, isChange) {
-  if (sName === 'Spread') return val >= 0 ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
-  if (isChange) {
-    const good = HIGHER_IS_GOOD.includes(sName) ? val >= 0 : val <= 0;
-    return good ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
-  }
-  return null;
-}
-
-function gradientColor(t, higherIsGood) {
-  const g = higherIsGood ? t : 1 - t;
-  if (g < 0.5) {
-    const r = Math.round(180 + (0.5 - g) * 2 * 75);
-    return 'rgba(' + r + ',40,60,0.4)';
-  }
-  const gr = Math.round(80 + (g - 0.5) * 2 * 150);
-  return 'rgba(0,' + gr + ',60,0.4)';
-}
+function cellColor() { return 'transparent'; }
+function gradientColor() { return 'transparent'; }
 
 // ─── UPDATE KPI CARD ─────────────────────────────────────
 // References globals: FRED_SERIES, HIGHER_IS_GOOD, DUAL_ROW, seriesRawData
@@ -43,10 +27,7 @@ function updateCard(name, rawObs) {
   valEl.classList.remove('loading-text');
   valEl.innerHTML = latest.value.toLocaleString(undefined, { maximumFractionDigits: cfg.decimals }) +
     '<span class="kpi-unit">' + cfg.unit + '</span>';
-  chgEl.className  = 'kpi-change ' + (pos ? 'pos' : 'neg');
-  chgEl.textContent = (pos ? '▲' : '▼') + ' ' +
-    Math.abs(change).toLocaleString(undefined, { maximumFractionDigits: cfg.decimals }) +
-    ' (' + pct.toFixed(2) + '%)';
+  if (chgEl) chgEl.style.display = 'none';
   dateEl.textContent = cfg.freq;
 
   // Sparkline — use cfg.bar colour if defined, otherwise cyan default
@@ -74,15 +55,7 @@ function updateCard(name, rawObs) {
     });
     const yoyCells = yoyVals.map((v, i) => {
       if (v === null) return '<td style="color:var(--muted)">–</td>';
-      const prevV = yoyVals[i - 1] ?? null;
-      let bg;
-      if (prevV === null) {
-        bg = 'transparent';
-      } else {
-        const improving = HIGHER_IS_GOOD.includes(name) ? v > prevV : v < prevV;
-        bg = improving ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
-      }
-      return '<td style="background:' + bg + '">' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%</td>';
+      return '<td>' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%</td>';
     }).join('');
     wrap.innerHTML =
       '<table class="mini-table"><thead><tr><th></th>' + headers + '</tr></thead>' +
@@ -92,20 +65,8 @@ function updateCard(name, rawObs) {
       '</tr></tbody></table>';
   } else {
     // Show raw value row with gradient coloring
-    const vals = displayObs.map(d => d.value);
-    const mn = Math.min(...vals), mx = Math.max(...vals), rng = mx - mn || 1;
-    const hig = HIGHER_IS_GOOD.includes(name);
-    const cells = displayObs.map((d, i) => {
-      const prev = i > 0 ? displayObs[i - 1].value : null;
-      let bg;
-      if (prev === null) {
-        bg = 'transparent';
-      } else if (name === 'Spread') {
-        bg = d.value > prev ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
-      } else {
-        bg = gradientColor((d.value - mn) / rng, hig);
-      }
-      return '<td style="background:' + bg + '">' +
+    const cells = displayObs.map((d) => {
+      return '<td>' +
         d.value.toLocaleString(undefined, { maximumFractionDigits: cfg.decimals }) + cfg.unit + '</td>';
     }).join('');
     wrap.innerHTML =
@@ -225,10 +186,7 @@ function openModal(name) {
     '<span style="font-size:16px;color:var(--muted);font-weight:400;margin-left:4px;">' + cfg.unit + '</span>';
 
   const chgEl = document.getElementById('modal-change');
-  chgEl.textContent = (pos ? '▲' : '▼') + ' ' +
-    Math.abs(change).toLocaleString(undefined, { maximumFractionDigits: cfg.decimals }) +
-    ' (' + pct.toFixed(2) + '%)';
-  chgEl.className = 'kpi-change ' + (pos ? 'pos' : 'neg');
+  if (chgEl) chgEl.style.display = 'none';
 
   // Full chart
   makeModalChart('modal-chart-canvas', obs.map(d => d.date), obs.map(d => d.value), cfg.bar || '#00d4ff', cfg.unit);
