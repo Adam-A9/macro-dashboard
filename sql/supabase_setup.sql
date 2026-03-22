@@ -21,10 +21,12 @@ CREATE TABLE IF NOT EXISTS consensus (
 
 ALTER TABLE consensus ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "public can read consensus"
+DROP POLICY IF EXISTS "public can read consensus" ON consensus;
+CREATE POLICY "public can read consensus"
 ON consensus FOR SELECT USING (true);
 
-CREATE POLICY IF NOT EXISTS "authenticated can write consensus"
+DROP POLICY IF EXISTS "authenticated can write consensus" ON consensus;
+CREATE POLICY "authenticated can write consensus"
 ON consensus FOR ALL
 USING (auth.role() = 'authenticated')
 WITH CHECK (auth.role() = 'authenticated');
@@ -47,10 +49,12 @@ CREATE INDEX IF NOT EXISTS idx_scrape_log_date   ON scrape_log (scraped_at);
 
 ALTER TABLE scrape_log ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "public can read scrape_log"
+DROP POLICY IF EXISTS "public can read scrape_log" ON scrape_log;
+CREATE POLICY "public can read scrape_log"
 ON scrape_log FOR SELECT USING (true);
 
-CREATE POLICY IF NOT EXISTS "authenticated can write scrape_log"
+DROP POLICY IF EXISTS "authenticated can write scrape_log" ON scrape_log;
+CREATE POLICY "authenticated can write scrape_log"
 ON scrape_log FOR ALL
 USING (auth.role() = 'authenticated')
 WITH CHECK (auth.role() = 'authenticated');
@@ -76,10 +80,12 @@ CREATE INDEX IF NOT EXISTS idx_events_type ON economic_events (event_type);
 
 ALTER TABLE economic_events ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "public can read economic_events"
+DROP POLICY IF EXISTS "public can read economic_events" ON economic_events;
+CREATE POLICY "public can read economic_events"
 ON economic_events FOR SELECT USING (true);
 
-CREATE POLICY IF NOT EXISTS "authenticated can write economic_events"
+DROP POLICY IF EXISTS "authenticated can write economic_events" ON economic_events;
+CREATE POLICY "authenticated can write economic_events"
 ON economic_events FOR ALL
 USING (auth.role() = 'authenticated')
 WITH CHECK (auth.role() = 'authenticated');
@@ -104,10 +110,12 @@ CREATE INDEX IF NOT EXISTS idx_auctions_date ON treasury_auctions (auction_date)
 
 ALTER TABLE treasury_auctions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "public can read treasury_auctions"
+DROP POLICY IF EXISTS "public can read treasury_auctions" ON treasury_auctions;
+CREATE POLICY "public can read treasury_auctions"
 ON treasury_auctions FOR SELECT USING (true);
 
-CREATE POLICY IF NOT EXISTS "authenticated can write treasury_auctions"
+DROP POLICY IF EXISTS "authenticated can write treasury_auctions" ON treasury_auctions;
+CREATE POLICY "authenticated can write treasury_auctions"
 ON treasury_auctions FOR ALL
 USING (auth.role() = 'authenticated')
 WITH CHECK (auth.role() = 'authenticated');
@@ -125,10 +133,12 @@ CREATE TABLE IF NOT EXISTS market_snapshots (
 
 ALTER TABLE market_snapshots ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "public can read market_snapshots"
+DROP POLICY IF EXISTS "public can read market_snapshots" ON market_snapshots;
+CREATE POLICY "public can read market_snapshots"
 ON market_snapshots FOR SELECT USING (true);
 
-CREATE POLICY IF NOT EXISTS "authenticated can write market_snapshots"
+DROP POLICY IF EXISTS "authenticated can write market_snapshots" ON market_snapshots;
+CREATE POLICY "authenticated can write market_snapshots"
 ON market_snapshots FOR ALL
 USING (auth.role() = 'authenticated')
 WITH CHECK (auth.role() = 'authenticated');
@@ -150,10 +160,12 @@ CREATE INDEX IF NOT EXISTS idx_est_hist_series ON estimate_history (series_id, r
 
 ALTER TABLE estimate_history ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "public can read estimate_history"
+DROP POLICY IF EXISTS "public can read estimate_history" ON estimate_history;
+CREATE POLICY "public can read estimate_history"
 ON estimate_history FOR SELECT USING (true);
 
-CREATE POLICY IF NOT EXISTS "authenticated can write estimate_history"
+DROP POLICY IF EXISTS "authenticated can write estimate_history" ON estimate_history;
+CREATE POLICY "authenticated can write estimate_history"
 ON estimate_history FOR ALL
 USING (auth.role() = 'authenticated')
 WITH CHECK (auth.role() = 'authenticated');
@@ -179,10 +191,12 @@ CREATE INDEX IF NOT EXISTS idx_intl_indicator ON international_macro (indicator)
 
 ALTER TABLE international_macro ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "public can read international_macro"
+DROP POLICY IF EXISTS "public can read international_macro" ON international_macro;
+CREATE POLICY "public can read international_macro"
 ON international_macro FOR SELECT USING (true);
 
-CREATE POLICY IF NOT EXISTS "authenticated can write international_macro"
+DROP POLICY IF EXISTS "authenticated can write international_macro" ON international_macro;
+CREATE POLICY "authenticated can write international_macro"
 ON international_macro FOR ALL
 USING (auth.role() = 'authenticated')
 WITH CHECK (auth.role() = 'authenticated');
@@ -211,10 +225,12 @@ CREATE TABLE IF NOT EXISTS yield_curve (
 
 ALTER TABLE yield_curve ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "public can read yield_curve"
+DROP POLICY IF EXISTS "public can read yield_curve" ON yield_curve;
+CREATE POLICY "public can read yield_curve"
 ON yield_curve FOR SELECT USING (true);
 
-CREATE POLICY IF NOT EXISTS "authenticated can write yield_curve"
+DROP POLICY IF EXISTS "authenticated can write yield_curve" ON yield_curve;
+CREATE POLICY "authenticated can write yield_curve"
 ON yield_curve FOR ALL
 USING (auth.role() = 'authenticated')
 WITH CHECK (auth.role() = 'authenticated');
@@ -238,10 +254,12 @@ CREATE TABLE IF NOT EXISTS series_metadata (
 
 ALTER TABLE series_metadata ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "public can read series_metadata"
+DROP POLICY IF EXISTS "public can read series_metadata" ON series_metadata;
+CREATE POLICY "public can read series_metadata"
 ON series_metadata FOR SELECT USING (true);
 
-CREATE POLICY IF NOT EXISTS "authenticated can write series_metadata"
+DROP POLICY IF EXISTS "authenticated can write series_metadata" ON series_metadata;
+CREATE POLICY "authenticated can write series_metadata"
 ON series_metadata FOR ALL
 USING (auth.role() = 'authenticated')
 WITH CHECK (auth.role() = 'authenticated');
