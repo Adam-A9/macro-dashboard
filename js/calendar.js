@@ -158,28 +158,28 @@ const FOMC_DATES = [
 
 // ─── DYNAMIC CALENDAR FETCH ──────────────────────────────
 async function fetchCalendar() {
-  const now    = new Date();
-  const today  = now.toISOString().slice(0, 10);
-  const past   = new Date(now.getTime() - 2 * 86400000).toISOString().slice(0, 10);
-  const future = new Date(now.getTime() + 14 * 86400000).toISOString().slice(0, 10);
+  var now       = new Date();
+  var today     = now.toISOString().slice(0, 10);
+  var yesterday = new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
+  var future    = new Date(now.getTime() + 14 * 86400000).toISOString().slice(0, 10);
 
-  let events = [];
+  var events = [];
 
   try {
-    const url = 'https://api.stlouisfed.org/fred/releases/dates' +
+    var url = 'https://api.stlouisfed.org/fred/releases/dates' +
       '?api_key=' + FRED_API_KEY +
       '&file_type=json' +
-      '&realtime_start=' + past +
+      '&realtime_start=' + yesterday +
       '&realtime_end='   + future +
       '&include_release_dates_with_no_data=false';
 
-    const json = await fetchWithProxy(url);
+    var json = await fetchWithProxy(url);
 
     if (json.release_dates && Array.isArray(json.release_dates)) {
       events = json.release_dates
-        .filter(r => r.date >= past && r.date <= future && RELEASE_META[r.release_id])
-        .map(r => {
-          const meta = RELEASE_META[r.release_id];
+        .filter(function(r) { return r.date >= yesterday && r.date <= future && RELEASE_META[r.release_id]; })
+        .map(function(r) {
+          var meta = RELEASE_META[r.release_id];
           return {
             date:   r.date,
             time:   meta.time,
@@ -194,9 +194,9 @@ async function fetchCalendar() {
     console.warn('Calendar fetch failed:', e.message);
   }
 
-  // Merge in FOMC dates (include recent past)
-  FOMC_DATES.forEach(f => {
-    if (f.date >= past && f.date <= future) {
+  // Merge in FOMC dates (yesterday + upcoming)
+  FOMC_DATES.forEach(function(f) {
+    if (f.date >= yesterday && f.date <= future) {
       events.push({
         date:   f.date,
         time:   f.time,
@@ -209,29 +209,24 @@ async function fetchCalendar() {
   });
 
   // De-duplicate by date+event name
-  const seen = new Set();
-  events = events.filter(ev => {
-    const key = ev.date + '|' + ev.event;
+  var seen = new Set();
+  events = events.filter(function(ev) {
+    var key = ev.date + '|' + ev.event;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 
-  // Separate past and upcoming events
-  var pastEvents = events.filter(ev => ev.date < today);
-  var upcoming   = events.filter(ev => ev.date >= today);
+  // Yesterday's events + all upcoming, sorted chronologically
+  var yesterdayEvents = events.filter(function(ev) { return ev.date === yesterday; });
+  var upcoming       = events.filter(function(ev) { return ev.date >= today; });
+  upcoming.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
 
-  // Sort each group by date
-  pastEvents.sort((a, b) => new Date(b.date) - new Date(a.date)); // most recent first
-  upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));   // soonest first
-
-  // Guarantee: 1 most recent past + at least 2 upcoming (if available)
-  var display = [];
-  if (pastEvents.length > 0) display.push(pastEvents[0]);
-  display = display.concat(upcoming.slice(0, Math.max(2, upcoming.length)));
+  // Combine: yesterday first, then upcoming — cap at 10 total
+  var display = yesterdayEvents.concat(upcoming).slice(0, 10);
 
   // Final sort chronologically for rendering
-  display.sort((a, b) => new Date(a.date) - new Date(b.date));
+  display.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
 
-  renderCalendar(display, past, future);
+  renderCalendar(display, yesterday, future);
 }

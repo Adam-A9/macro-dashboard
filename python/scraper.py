@@ -269,7 +269,7 @@ def scrape_fred_releases():
         return results
 
     release_dates = data.get('release_dates', [])
-    seen = set()
+    seen = set()  # (release_id, date) to deduplicate
 
     for entry in release_dates:
         rid = entry.get('release_id')
@@ -277,13 +277,13 @@ def scrape_fred_releases():
         if rid not in FRED_RELEASES or not in_window(rd):
             continue
 
+        key = (rid, rd)
+        if key in seen:
+            continue
+        seen.add(key)
+
         meta = FRED_RELEASES[rid]
         sid  = meta['series_id']
-
-        # Take only the earliest upcoming date per series
-        if sid in seen:
-            continue
-        seen.add(sid)
 
         results.append({
             'series_id':    sid,
@@ -1339,9 +1339,11 @@ def scrape_conference_board():
 # ═══════════════════════════════════════════════════════════════
 def merge_results(*source_lists):
     """
-    Merge records from multiple sources. Priority:
+    Merge records from multiple sources, keyed by (series_id, release_date).
+    A single series can have multiple upcoming dates (e.g. weekly claims).
+    Priority:
     1. Prefer records with consensus estimates over those without
-    2. Prefer government sources (BLS/BEA/Census) for dates
+    2. Prefer government sources (BLS/BEA/Census) for metadata
     3. Prefer market sources (MarketWatch/Investing) for estimates
     """
     merged = {}
@@ -1349,22 +1351,22 @@ def merge_results(*source_lists):
 
     for source in source_lists:
         for item in source:
-            sid = item['series_id']
-            if sid not in merged:
-                merged[sid] = item.copy()
+            key = (item['series_id'], item.get('release_date', ''))
+            if key not in merged:
+                merged[key] = item.copy()
             else:
-                existing = merged[sid]
+                existing = merged[key]
                 # If new item has an estimate and existing doesn't, take the estimate
                 if item.get('estimate') is not None and existing.get('estimate') is None:
                     existing['estimate'] = item['estimate']
                 # If new item has an actual and existing doesn't, take the actual
                 if item.get('actual') is not None and existing.get('actual') is None:
                     existing['actual'] = item['actual']
-                # Prefer government source dates
+                # Prefer government source metadata
                 if (item.get('source') in PRIORITY_SOURCES and
                         existing.get('source') not in PRIORITY_SOURCES):
-                    existing['release_date'] = item['release_date']
                     existing['source'] = item['source']
+                    existing['impact'] = item.get('impact', existing.get('impact'))
 
     return list(merged.values())
 
