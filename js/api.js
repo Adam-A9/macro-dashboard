@@ -62,3 +62,19 @@ async function fetchMarket(symbol) {
     .map((t, i) => ({ date: new Date(t * 1000).toISOString().slice(0, 10), value: closes[i] }))
     .filter(d => d.value != null);
 }
+
+async function fetchMarketWithFallbacks(symbols) {
+  for (let i = 0; i < symbols.length; i++) {
+    try {
+      const obs = await fetchMarket(symbols[i]);
+      if (obs.length > 0) {
+        console.log('Market fallback: resolved using ' + symbols[i]);
+        return obs;
+      }
+    } catch (e) {
+      console.warn('Market fallback: ' + symbols[i] + ' failed — ' + e.message);
+      if (i < symbols.length - 1) await sleep(300);
+    }
+  }
+  throw new Error('All tickers failed: ' + symbols.join(', '));
+}

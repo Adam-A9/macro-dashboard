@@ -947,7 +947,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">US Dollar Index</div>
-          <div class="panel-sub">DX=F · Daily</div>
+          <div class="panel-sub">DXY · Daily</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
           <span id="dxy-val" style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;">–</span>
@@ -1041,7 +1041,7 @@ const FRED_SERIES = {
 const MARKET = {
   "^GSPC":   { label: "S&P 500",   canvasId: "chartSPX",  valId: "spx-val",  chgId: "spx-chg",  color: "#00d4ff" },
   "CL=F":    { label: "WTI Crude", canvasId: "chartOil",  valId: "oil-val",  chgId: "oil-chg",  color: "#ff6b35" },
-  "DX=F":    { label: "US Dollar", canvasId: "chartDXY",  valId: "dxy-val",  chgId: "dxy-chg",  color: "#ffd700" },
+  "DX-Y.NYB": { label: "US Dollar", canvasId: "chartDXY",  valId: "dxy-val",  chgId: "dxy-chg",  color: "#ffd700", alts: ["DX-Y.NYB","DX=F","UUP"] },
   "^VIX":    { label: "VIX",       canvasId: "chartVIX",  valId: "vix-val",  chgId: "vix-chg",  color: "#ff3b5c" },
   "GC=F":    { label: "Gold",      canvasId: "chartGold", valId: "gold-val", chgId: "gold-chg", color: "#ffd700" },
   "BTC-USD": { label: "Bitcoin",   canvasId: "chartBTC",  valId: "btc-val",  chgId: "btc-chg",  color: "#f7931a" }
@@ -1126,7 +1126,7 @@ async function fetchAll() {
     const sym = marketSymbols[i];
     const cfg = MARKET[sym];
     try {
-      const obs = await fetchMarket(sym);
+      const obs = cfg.alts ? await fetchMarketWithFallbacks(cfg.alts) : await fetchMarket(sym);
       if (obs.length > 1) {
         const latest = obs[obs.length - 1];
         const prior  = obs[obs.length - 2];

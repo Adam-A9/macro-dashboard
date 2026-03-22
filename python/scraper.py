@@ -963,30 +963,56 @@ def scrape_yahoo_markets():
         'BTC-USD': 'Bitcoin',
     }
 
-    for symbol, name in symbols.items():
+    # Fallback tickers: if the primary symbol fails, try alternatives
+    fallbacks = {
+        'DX-Y.NYB': ['DX-Y.NYB', 'DX=F', 'UUP'],
+    }
+
+    def _fetch_yahoo_symbol(sym):
+        """Fetch a single Yahoo symbol, return (price, prev_close) or None."""
         resp = safe_get(
-            f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol)}"
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(sym)}"
             f"?range=5d&interval=1d",
             headers={"User-Agent": HEADERS["User-Agent"]}
         )
         if not resp:
-            continue
+            return None
+        data = resp.json()
+        result = data.get('chart', {}).get('result', [{}])[0]
+        meta = result.get('meta', {})
+        price = meta.get('regularMarketPrice')
+        prev  = meta.get('chartPreviousClose') or meta.get('previousClose')
+        if price:
+            return price, prev
+        return None
 
+    for symbol, name in symbols.items():
         try:
-            data = resp.json()
-            result = data.get('chart', {}).get('result', [{}])[0]
-            meta = result.get('meta', {})
-            price = meta.get('regularMarketPrice')
-            prev  = meta.get('chartPreviousClose') or meta.get('previousClose')
-            if price:
-                change = ((price - prev) / prev * 100) if prev else 0
-                market_data.append({
-                    'symbol': symbol,
-                    'name':   name,
-                    'price':  round(price, 2),
-                    'change': round(change, 2),
-                })
-                log.info(f"  {name:<30} {price:>12,.2f}  ({change:+.2f}%)")
+            tickers = fallbacks.get(symbol, [symbol])
+            hit = None
+            resolved_sym = symbol
+            for ticker in tickers:
+                hit = _fetch_yahoo_symbol(ticker)
+                if hit:
+                    resolved_sym = ticker
+                    break
+                log.warning(f"  {name}: ticker {ticker} returned no data, trying next…")
+
+            if not hit:
+                log.warning(f"  {name}: all tickers failed ({', '.join(tickers)})")
+                continue
+
+            price, prev = hit
+            if resolved_sym != symbol:
+                log.info(f"  {name}: resolved via fallback ticker {resolved_sym}")
+            change = ((price - prev) / prev * 100) if prev else 0
+            market_data.append({
+                'symbol': symbol,
+                'name':   name,
+                'price':  round(price, 2),
+                'change': round(change, 2),
+            })
+            log.info(f"  {name:<30} {price:>12,.2f}  ({change:+.2f}%)")
         except Exception as e:
             log.warning(f"  {symbol} parse error: {e}")
 
