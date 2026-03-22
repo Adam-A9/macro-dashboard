@@ -43,10 +43,8 @@ function updateCard(name, rawObs) {
   valEl.classList.remove('loading-text');
   valEl.innerHTML = latest.value.toLocaleString(undefined, { maximumFractionDigits: cfg.decimals }) +
     '<span class="kpi-unit">' + cfg.unit + '</span>';
-  chgEl.className  = 'kpi-change ' + (pos ? 'pos' : 'neg');
-  chgEl.textContent = (pos ? '▲' : '▼') + ' ' +
-    Math.abs(change).toLocaleString(undefined, { maximumFractionDigits: cfg.decimals }) +
-    ' (' + pct.toFixed(2) + '%)';
+  chgEl.className  = 'kpi-change neutral';
+  chgEl.textContent = '';
   dateEl.textContent = cfg.freq;
 
   // Sparkline — use cfg.bar colour if defined, otherwise cyan default
@@ -74,15 +72,7 @@ function updateCard(name, rawObs) {
     });
     const yoyCells = yoyVals.map((v, i) => {
       if (v === null) return '<td style="color:var(--muted)">–</td>';
-      const prevV = yoyVals[i - 1] ?? null;
-      let bg;
-      if (prevV === null) {
-        bg = 'transparent';
-      } else {
-        const improving = HIGHER_IS_GOOD.includes(name) ? v > prevV : v < prevV;
-        bg = improving ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
-      }
-      return '<td style="background:' + bg + '">' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%</td>';
+      return '<td>' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%</td>';
     }).join('');
     wrap.innerHTML =
       '<table class="mini-table"><thead><tr><th></th>' + headers + '</tr></thead>' +
@@ -91,21 +81,9 @@ function updateCard(name, rawObs) {
         yoyCells +
       '</tr></tbody></table>';
   } else {
-    // Show raw value row with gradient coloring
-    const vals = displayObs.map(d => d.value);
-    const mn = Math.min(...vals), mx = Math.max(...vals), rng = mx - mn || 1;
-    const hig = HIGHER_IS_GOOD.includes(name);
+    // Show raw value row
     const cells = displayObs.map((d, i) => {
-      const prev = i > 0 ? displayObs[i - 1].value : null;
-      let bg;
-      if (prev === null) {
-        bg = 'transparent';
-      } else if (name === 'Spread') {
-        bg = d.value > prev ? 'rgba(0,190,90,0.38)' : 'rgba(220,40,60,0.38)';
-      } else {
-        bg = gradientColor((d.value - mn) / rng, hig);
-      }
-      return '<td style="background:' + bg + '">' +
+      return '<td>' +
         d.value.toLocaleString(undefined, { maximumFractionDigits: cfg.decimals }) + cfg.unit + '</td>';
     }).join('');
     wrap.innerHTML =
