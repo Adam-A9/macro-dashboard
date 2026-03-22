@@ -160,7 +160,7 @@ const FOMC_DATES = [
 async function fetchCalendar() {
   const now    = new Date();
   const today  = now.toISOString().slice(0, 10);
-  const past   = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+  const past   = new Date(now.getTime() - 2 * 86400000).toISOString().slice(0, 10);
   const future = new Date(now.getTime() + 14 * 86400000).toISOString().slice(0, 10);
 
   let events = [];

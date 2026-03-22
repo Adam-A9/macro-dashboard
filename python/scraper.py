@@ -68,7 +68,7 @@ HEADERS = {
 }
 
 TODAY  = date.today()
-LOOKBACK = TODAY - timedelta(days=7)  # 7-day lookback for most recent past events
+LOOKBACK = TODAY - timedelta(days=2)  # 2-day lookback for most recent past events
 CUTOFF = TODAY + timedelta(days=90)   # 90-day forward window
 
 # ─── SERIES MAP ──────────────────────────────────────────────
