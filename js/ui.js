@@ -45,7 +45,8 @@ function updateCard(name, rawObs) {
     '<span class="kpi-unit">' + cfg.unit + '</span>';
   chgEl.className  = 'kpi-change ' + (pos ? 'pos' : 'neg');
   chgEl.textContent = (pos ? '▲' : '▼') + ' ' +
-    Math.abs(change).toLocaleString(undefined, { maximumFractionDigits: cfg.decimals });
+    Math.abs(change).toLocaleString(undefined, { maximumFractionDigits: cfg.decimals }) +
+    ' (' + pct.toFixed(2) + '%)';
   dateEl.textContent = cfg.freq;
 
   // Sparkline — use cfg.bar colour if defined, otherwise cyan default
@@ -131,11 +132,14 @@ async function fetchAll() {
       if (obs.length > 1) {
         const latest = obs[obs.length - 1];
         const prior  = obs[obs.length - 2];
+        const pct    = ((latest.value - prior.value) / Math.abs(prior.value)) * 100;
+        const pos    = pct >= 0;
         document.getElementById(cfg.valId).textContent =
           latest.value.toLocaleString(undefined, { maximumFractionDigits: 2 });
         const chgEl = document.getElementById(cfg.chgId);
         if (chgEl) {
-          chgEl.textContent = '';
+          chgEl.textContent = (pos ? '+' : '') + pct.toFixed(2) + '%';
+          chgEl.style.color = pos ? 'var(--green)' : 'var(--red)';
         }
         makeLineChart(cfg.canvasId, obs.map(d => d.date), obs.map(d => d.value), cfg.color);
       }
@@ -202,7 +206,8 @@ function openModal(name) {
 
   const chgEl = document.getElementById('modal-change');
   chgEl.textContent = (pos ? '▲' : '▼') + ' ' +
-    Math.abs(change).toLocaleString(undefined, { maximumFractionDigits: cfg.decimals });
+    Math.abs(change).toLocaleString(undefined, { maximumFractionDigits: cfg.decimals }) +
+    ' (' + pct.toFixed(2) + '%)';
   chgEl.className = 'kpi-change ' + (pos ? 'pos' : 'neg');
 
   // Full chart
