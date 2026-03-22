@@ -192,3 +192,43 @@ describe('RELEASE_META', () => {
     });
   });
 });
+
+describe('SERIES_META', () => {
+  it('is a non-empty object keyed by FRED series IDs', () => {
+    const keys = Object.keys(SERIES_META);
+    assert.ok(keys.length > 0, 'should have at least one series mapped');
+  });
+
+  it('each entry has name, time, and freq fields', () => {
+    Object.entries(SERIES_META).forEach(([sid, meta]) => {
+      assert.ok('name' in meta, sid + ' missing name');
+      assert.ok('time' in meta, sid + ' missing time');
+      assert.ok('freq' in meta, sid + ' missing freq');
+    });
+  });
+
+  it('covers all key series from the scraper', () => {
+    const expectedSeries = [
+      'CPIAUCSL', 'PPIACO', 'PAYEMS', 'ICSA', 'GDP', 'PCEPI',
+      'RSAFS', 'HOUST', 'DGORDER', 'BOPGSTB', 'MANEMP', 'NMFCI'
+    ];
+    expectedSeries.forEach(sid => {
+      assert.ok(SERIES_META[sid], 'SERIES_META should contain ' + sid);
+    });
+  });
+
+  it('CPI series has correct display metadata', () => {
+    assert.equal(SERIES_META['CPIAUCSL'].time, '08:30');
+    assert.equal(SERIES_META['CPIAUCSL'].freq, 'MoM');
+  });
+
+  it('weekly series (ICSA, CCSA) use WoW frequency', () => {
+    assert.equal(SERIES_META['ICSA'].freq, 'WoW', 'Initial Claims should be WoW');
+    assert.equal(SERIES_META['CCSA'].freq, 'WoW', 'Continuing Claims should be WoW');
+  });
+
+  it('quarterly series (GDP, ECI) use QoQ frequency', () => {
+    assert.equal(SERIES_META['GDP'].freq, 'QoQ', 'GDP should be QoQ');
+    assert.equal(SERIES_META['ECIWAG'].freq, 'QoQ', 'ECI should be QoQ');
+  });
+});

@@ -1442,6 +1442,7 @@ def upsert_to_supabase(records):
         "actual":       r.get('actual'),
         "unit":         r.get('unit', ''),
         "source":       r.get('source', ''),
+        "impact":       r.get('impact', 'low'),
         "updated_at":   datetime.utcnow().isoformat(),
     } for r in records]
 

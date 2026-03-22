@@ -135,6 +135,43 @@ const RELEASE_META = {
   117: { name: 'Continuing Jobless Claims',        time: '08:30', freq: 'WoW', source: 'Dept of Labor',   impact: 'low'    },
 };
 
+// series_id → display metadata (mirrors scraper FRED_RELEASES, used for Supabase rows)
+const SERIES_META = {
+  'CPIAUCSL':       { name: 'Consumer Price Index (CPI)',      time: '08:30', freq: 'MoM' },
+  'CPILFESL':       { name: 'Core CPI',                        time: '08:30', freq: 'MoM' },
+  'IR':             { name: 'Import & Export Prices',           time: '08:30', freq: 'MoM' },
+  'RSAFS':          { name: 'Retail Sales',                     time: '08:30', freq: 'MoM' },
+  'CSCICP03USM665S':{ name: 'Consumer Confidence',              time: '10:00', freq: 'MoM' },
+  'EXHOSLUSM495S':  { name: 'Existing Home Sales',             time: '10:00', freq: 'MoM' },
+  'M2SL':           { name: 'M2 Money Supply',                  time: '13:30', freq: 'MoM' },
+  'PPIACO':         { name: 'Producer Price Index (PPI)',       time: '08:30', freq: 'MoM' },
+  'PAYEMS':         { name: 'Nonfarm Payrolls',                 time: '08:30', freq: 'MoM' },
+  'ICSA':           { name: 'Initial Jobless Claims',           time: '08:30', freq: 'WoW' },
+  'JTSJOL':         { name: 'JOLTS Job Openings',               time: '10:00', freq: 'MoM' },
+  'GDP':            { name: 'GDP',                              time: '08:30', freq: 'QoQ' },
+  'HSN1F':          { name: 'New Home Sales',                   time: '10:00', freq: 'MoM' },
+  'PCEPI':          { name: 'PCE / Personal Income',            time: '08:30', freq: 'MoM' },
+  'PCEPILFE':       { name: 'Core PCE',                         time: '08:30', freq: 'MoM' },
+  'HOUST':          { name: 'Housing Starts & Permits',         time: '08:30', freq: 'MoM' },
+  'USSLIND':        { name: 'Leading Economic Indicators',      time: '10:00', freq: 'MoM' },
+  'INDPRO':         { name: 'Industrial Production',            time: '09:15', freq: 'MoM' },
+  'ECIWAG':         { name: 'Employment Cost Index',            time: '08:30', freq: 'QoQ' },
+  'CSUSHPISA':      { name: 'Case-Shiller Home Prices',         time: '09:00', freq: 'MoM' },
+  'MANEMP':         { name: 'ISM Manufacturing PMI',            time: '10:00', freq: 'MoM' },
+  'NMFCI':          { name: 'ISM Services PMI',                 time: '10:00', freq: 'MoM' },
+  'TTLCONS':        { name: 'Construction Spending',            time: '10:00', freq: 'MoM' },
+  'UMCSENT':        { name: 'Consumer Sentiment',               time: '10:00', freq: 'MoM' },
+  'PHSI':           { name: 'Pending Home Sales',               time: '10:00', freq: 'MoM' },
+  'DGORDER':        { name: 'Durable Goods Orders',            time: '08:30', freq: 'MoM' },
+  'CES0500000003':  { name: 'Average Hourly Earnings',          time: '08:30', freq: 'MoM' },
+  'BOPGSTB':        { name: 'Trade Balance',                    time: '08:30', freq: 'MoM' },
+  'AMTMNO':         { name: 'Factory Orders',                   time: '10:00', freq: 'MoM' },
+  'TCU':            { name: 'Capacity Utilization',             time: '09:15', freq: 'MoM' },
+  'CCSA':           { name: 'Continuing Jobless Claims',        time: '08:30', freq: 'WoW' },
+  'UNRATE':         { name: 'Unemployment Rate',                time: '08:30', freq: 'MoM' },
+  'PERMIT':         { name: 'Building Permits',                 time: '08:30', freq: 'MoM' },
+};
+
 // FOMC meeting decision dates (announced ~1 year in advance by the Fed).
 // Only the decision day (day 2 of each 2-day meeting) is listed.
 const FOMC_DATES = [
@@ -156,6 +193,71 @@ const FOMC_DATES = [
   { date: '2026-12-09', time: '14:00' },
 ];
 
+// ─── SUPABASE FETCH (primary) ────────────────────────────
+// Reads from the `consensus` table populated by the scraper.
+async function fetchFromSupabase(yesterday, future) {
+  if (!SUPABASE_ANON) return null;
+
+  var url = SUPABASE_URL + '/rest/v1/consensus' +
+    '?select=series_id,release_name,release_date,estimate,actual,unit,source,impact' +
+    '&release_date=gte.' + yesterday +
+    '&release_date=lte.' + future +
+    '&order=release_date.asc';
+
+  var res = await fetch(url, {
+    headers: {
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON,
+      'Accept': 'application/json'
+    }
+  });
+
+  if (!res.ok) throw new Error('Supabase ' + res.status);
+  var rows = await res.json();
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+
+  return rows.map(function(r) {
+    var meta = SERIES_META[r.series_id] || {};
+    return {
+      date:   r.release_date,
+      time:   meta.time || '',
+      event:  r.release_name || meta.name || r.series_id,
+      freq:   meta.freq || 'MoM',
+      source: r.source || meta.source || '',
+      impact: r.impact || 'low'
+    };
+  });
+}
+
+// ─── FRED FALLBACK ───────────────────────────────────────
+// Direct FRED API fetch if Supabase is unavailable or empty.
+async function fetchFromFRED(yesterday, future) {
+  var url = 'https://api.stlouisfed.org/fred/releases/dates' +
+    '?api_key=' + FRED_API_KEY +
+    '&file_type=json' +
+    '&realtime_start=' + yesterday +
+    '&realtime_end='   + future +
+    '&include_release_dates_with_no_data=false';
+
+  var json = await fetchWithProxy(url);
+
+  if (!json.release_dates || !Array.isArray(json.release_dates)) return [];
+
+  return json.release_dates
+    .filter(function(r) { return r.date >= yesterday && r.date <= future && RELEASE_META[r.release_id]; })
+    .map(function(r) {
+      var meta = RELEASE_META[r.release_id];
+      return {
+        date:   r.date,
+        time:   meta.time,
+        event:  meta.name,
+        freq:   meta.freq,
+        source: meta.source,
+        impact: meta.impact
+      };
+    });
+}
+
 // ─── DYNAMIC CALENDAR FETCH ──────────────────────────────
 async function fetchCalendar() {
   var now       = new Date();
@@ -165,33 +267,23 @@ async function fetchCalendar() {
 
   var events = [];
 
+  // Try Supabase first (scraper data), fall back to FRED API
   try {
-    var url = 'https://api.stlouisfed.org/fred/releases/dates' +
-      '?api_key=' + FRED_API_KEY +
-      '&file_type=json' +
-      '&realtime_start=' + yesterday +
-      '&realtime_end='   + future +
-      '&include_release_dates_with_no_data=false';
-
-    var json = await fetchWithProxy(url);
-
-    if (json.release_dates && Array.isArray(json.release_dates)) {
-      events = json.release_dates
-        .filter(function(r) { return r.date >= yesterday && r.date <= future && RELEASE_META[r.release_id]; })
-        .map(function(r) {
-          var meta = RELEASE_META[r.release_id];
-          return {
-            date:   r.date,
-            time:   meta.time,
-            event:  meta.name,
-            freq:   meta.freq,
-            source: meta.source,
-            impact: meta.impact
-          };
-        });
+    var supabaseEvents = await fetchFromSupabase(yesterday, future);
+    if (supabaseEvents && supabaseEvents.length > 0) {
+      events = supabaseEvents;
+      console.info('Calendar: loaded ' + events.length + ' events from Supabase');
+    } else {
+      events = await fetchFromFRED(yesterday, future);
+      console.info('Calendar: loaded ' + events.length + ' events from FRED (fallback)');
     }
   } catch (e) {
-    console.warn('Calendar fetch failed:', e.message);
+    console.warn('Calendar: Supabase failed, trying FRED fallback:', e.message);
+    try {
+      events = await fetchFromFRED(yesterday, future);
+    } catch (e2) {
+      console.warn('Calendar: FRED fallback also failed:', e2.message);
+    }
   }
 
   // Merge in FOMC dates (yesterday + upcoming)
