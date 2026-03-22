@@ -680,6 +680,29 @@
   }
   .cal-prev-label { color: var(--muted); font-size: 9px; }
   .cal-prev-val { color: var(--text); font-size: 10px; margin-top: 1px; text-align: right; }
+  .cal-est-group {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 0 5px;
+    align-items: baseline;
+    justify-items: end;
+  }
+  .cal-est-label {
+    color: var(--muted);
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    justify-self: start;
+  }
+  .cal-est-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text);
+  }
+  .cal-est-prior { color: var(--muted); }
+  .cal-beat { color: var(--green); }
+  .cal-miss { color: var(--red); }
+  .cal-inline { color: var(--text); }
   .cal-fomc { background: #131a22; }
   .cal-impact {
     font-size: 9px;

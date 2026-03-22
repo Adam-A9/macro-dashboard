@@ -104,6 +104,55 @@ describe('renderCalendar', () => {
     assert.ok(grid.innerHTML.includes('ago'), 'past events should show "ago" in days label');
   });
 
+  it('renders consensus estimate, actual, and prior when available', () => {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const events = [
+      { date: tomorrow, time: '08:30', event: 'CPI Release', freq: 'MoM', source: 'BLS', impact: 'high',
+        estimate: 2.9, actual: null, prior: 2.7, unit: '%' },
+    ];
+    renderCalendar(events, '2026-03-17', '2026-03-31');
+    const grid = document.getElementById('calendarGrid');
+    assert.ok(grid.innerHTML.includes('cal-est-group'), 'should render estimate group');
+    assert.ok(grid.textContent.includes('2.9%'), 'should display estimate value');
+    assert.ok(grid.textContent.includes('2.7%'), 'should display prior value');
+    assert.ok(grid.innerHTML.includes('cal-est-prior'), 'prior should have prior styling');
+  });
+
+  it('renders actual with beat/miss styling vs estimate', () => {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const events = [
+      { date: tomorrow, time: '08:30', event: 'NFP', freq: 'MoM', source: 'BLS', impact: 'high',
+        estimate: 185, actual: 200, prior: 170, unit: 'K' },
+    ];
+    renderCalendar(events, '2026-03-17', '2026-03-31');
+    const grid = document.getElementById('calendarGrid');
+    assert.ok(grid.innerHTML.includes('cal-beat'), 'actual > estimate should have beat class');
+    assert.ok(grid.textContent.includes('200K'), 'should display actual value');
+    assert.ok(grid.textContent.includes('185K'), 'should display estimate value');
+  });
+
+  it('renders miss styling when actual < estimate', () => {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const events = [
+      { date: tomorrow, time: '08:30', event: 'GDP', freq: 'QoQ', source: 'BEA', impact: 'high',
+        estimate: 2.5, actual: 2.0, prior: 2.3, unit: '%' },
+    ];
+    renderCalendar(events, '2026-03-17', '2026-03-31');
+    const grid = document.getElementById('calendarGrid');
+    assert.ok(grid.innerHTML.includes('cal-miss'), 'actual < estimate should have miss class');
+  });
+
+  it('falls back to frequency label when no estimates exist', () => {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const events = [
+      { date: tomorrow, time: '14:00', event: 'Fed Decision', freq: 'Fed', source: 'Federal Reserve', impact: 'high' },
+    ];
+    renderCalendar(events, '2026-03-17', '2026-03-31');
+    const grid = document.getElementById('calendarGrid');
+    assert.ok(grid.innerHTML.includes('cal-prev-label'), 'events without estimates should show freq label');
+    assert.ok(!grid.innerHTML.includes('cal-est-group'), 'should not render estimate group');
+  });
+
   it('does not apply cal-past class for future events', () => {
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     const events = [

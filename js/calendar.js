@@ -88,9 +88,27 @@ function renderCalendar(events, from, to) {
       '</div>' +
 
       '<div class="cal-prev' + fomcClass + lastClass + pastClass + '">' +
-        '<div style="text-align:right;">' +
-          '<div class="cal-prev-label">' + ev.freq + '</div>' +
-        '</div>' +
+        (function() {
+          if (ev.estimate == null && ev.actual == null && ev.prior == null) {
+            return '<div style="text-align:right;"><div class="cal-prev-label">' + ev.freq + '</div></div>';
+          }
+          var u = ev.unit || '';
+          var parts = [];
+          if (ev.actual != null) {
+            var surpriseClass = '';
+            if (ev.estimate != null) {
+              surpriseClass = ev.actual > ev.estimate ? ' cal-beat' : ev.actual < ev.estimate ? ' cal-miss' : ' cal-inline';
+            }
+            parts.push('<span class="cal-est-label">A</span><span class="cal-est-val' + surpriseClass + '">' + ev.actual + u + '</span>');
+          }
+          if (ev.estimate != null) {
+            parts.push('<span class="cal-est-label">E</span><span class="cal-est-val">' + ev.estimate + u + '</span>');
+          }
+          if (ev.prior != null) {
+            parts.push('<span class="cal-est-label">P</span><span class="cal-est-val cal-est-prior">' + ev.prior + u + '</span>');
+          }
+          return '<div class="cal-est-group">' + parts.join('') + '</div>';
+        })() +
       '</div>';
   });
 
@@ -199,7 +217,7 @@ async function fetchFromSupabase(yesterday, future) {
   if (!SUPABASE_ANON) return null;
 
   var url = SUPABASE_URL + '/rest/v1/consensus' +
-    '?select=series_id,release_name,release_date,estimate,actual,unit,source,impact' +
+    '?select=series_id,release_name,release_date,estimate,actual,prior,unit,source,impact' +
     '&release_date=gte.' + yesterday +
     '&release_date=lte.' + future +
     '&order=release_date.asc';
@@ -219,12 +237,16 @@ async function fetchFromSupabase(yesterday, future) {
   return rows.map(function(r) {
     var meta = SERIES_META[r.series_id] || {};
     return {
-      date:   r.release_date,
-      time:   meta.time || '',
-      event:  r.release_name || meta.name || r.series_id,
-      freq:   meta.freq || 'MoM',
-      source: r.source || meta.source || '',
-      impact: r.impact || 'low'
+      date:     r.release_date,
+      time:     meta.time || '',
+      event:    r.release_name || meta.name || r.series_id,
+      freq:     meta.freq || 'MoM',
+      source:   r.source || meta.source || '',
+      impact:   r.impact || 'low',
+      estimate: r.estimate,
+      actual:   r.actual,
+      prior:    r.prior,
+      unit:     r.unit || ''
     };
   });
 }
