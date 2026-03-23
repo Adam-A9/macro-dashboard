@@ -208,11 +208,7 @@
     align-items: center;
   }
   .kpi-series-id {
-    background: var(--surface2);
-    color: var(--muted2);
-    font-size: 8px;
-    padding: 1px 5px;
-    border: 1px solid var(--border);
+    display: none;
   }
   .kpi-value {
     font-family: 'DM Mono', monospace;
@@ -370,6 +366,13 @@
   .kpi-card:nth-child(6) { animation-delay: 0.30s; }
   .kpi-card:nth-child(7) { animation-delay: 0.35s; }
   .kpi-card:nth-child(8) { animation-delay: 0.40s; }
+
+  /* ── TABLET RESPONSIVE ─────────────────────────────────── */
+  @media (max-width: 1200px) {
+    .main {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
 
   /* ── MOBILE RESPONSIVE ────────────────────────────────── */
   @media (max-width: 768px) {
@@ -823,11 +826,7 @@
     align-items: center;
   }
   .kpi-series-id {
-    background: var(--surface2);
-    color: var(--muted2);
-    font-size: 8px;
-    padding: 1px 5px;
-    border: 1px solid var(--border);
+    display: none;
   }
   .kpi-value {
     font-family: 'DM Mono', monospace;
@@ -1132,6 +1131,13 @@
   .kpi-card:nth-child(7) { animation-delay: 0.35s; }
   .kpi-card:nth-child(8) { animation-delay: 0.40s; }
 
+  /* ── TABLET RESPONSIVE ─────────────────────────────────── */
+  @media (max-width: 1200px) {
+    .main {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
   /* ── MOBILE RESPONSIVE ────────────────────────────────── */
   @media (max-width: 768px) {
 
@@ -1206,7 +1212,6 @@
     .logo span { display: none; }
     .kpi-value { font-size: 20px !important; }
     .live-badge span:last-child { display: none; }
-    .kpi-series-id { font-size: 7px; }
     .kpi-info { width: 12px; height: 12px; font-size: 8px; }
     .main { padding: 8px; gap: 6px; }
   }

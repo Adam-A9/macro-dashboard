@@ -48,7 +48,7 @@ function updateCard(name, rawObs) {
   dateEl.textContent = cfg.freq;
 
   // Sparkline — use cfg.bar colour if defined, otherwise cyan default
-  makeSparkline('spark-' + name, obs, cfg.bar || '#00d4ff');
+  makeSparkline('spark-' + name, obs, '#3b82f6');
 
   // ── Mini heatmap table ────────────────────────────────
   const tableObs9 = obs.slice(-9);
@@ -58,7 +58,9 @@ function updateCard(name, rawObs) {
   const displayObs = tableObs9.slice(-8);
   const headers    = displayObs.map(d => {
     const p = d.date.split('-');
-    return '<th>' + p[1] + '/' + p[2].slice(0, 2) + '/' + p[0].slice(2) + '</th>';
+    const short = parseInt(p[1]) + '/' + parseInt(p[2].slice(0, 2));
+    const full  = p[1] + '/' + p[2].slice(0, 2) + '/' + p[0];
+    return '<th title="' + full + '">' + short + '</th>';
   }).join('');
 
   if (DUAL_ROW.includes(name)) {
@@ -189,7 +191,8 @@ function openModal(name) {
 
   // Header info
   document.getElementById('modal-title').textContent = cfg.label;
-  document.getElementById('modal-series').textContent = cfg.id;
+  var modalSeriesEl = document.getElementById('modal-series');
+  if (modalSeriesEl) modalSeriesEl.style.display = 'none';
   document.getElementById('modal-freq').textContent = cfg.freq;
 
   const latest = obs[obs.length - 1];
@@ -209,7 +212,7 @@ function openModal(name) {
   chgEl.className = 'kpi-change ' + (pos ? 'pos' : 'neg');
 
   // Full chart
-  makeModalChart('modal-chart-canvas', obs.map(d => d.date), obs.map(d => d.value), cfg.bar || '#00d4ff', cfg.unit);
+  makeModalChart('modal-chart-canvas', obs.map(d => d.date), obs.map(d => d.value), '#3b82f6', cfg.unit);
 
   // Enlarged heatmap table
   const tableWrap = document.getElementById('modal-table');
