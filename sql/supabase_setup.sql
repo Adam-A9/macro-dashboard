@@ -4,9 +4,9 @@
 
 -- ─── 1. CONSENSUS ESTIMATES TABLE ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS consensus (
-  series_id      TEXT PRIMARY KEY,
+  series_id      TEXT NOT NULL,
   release_name   TEXT,
-  release_date   DATE,
+  release_date   DATE NOT NULL,
   estimate       NUMERIC,
   actual         NUMERIC,
   prior          NUMERIC,
@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS consensus (
   source         TEXT DEFAULT '',
   impact         TEXT DEFAULT 'low',
   frequency      TEXT DEFAULT 'MoM',
-  updated_at     TIMESTAMPTZ DEFAULT now()
+  updated_at     TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (series_id, release_date)
 );
 ALTER TABLE consensus ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "public can read consensus" ON consensus;

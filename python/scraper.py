@@ -1530,6 +1530,39 @@ def fetch_prior_values(records):
 # ═══════════════════════════════════════════════════════════════
 # SUPABASE UPSERT
 # ═══════════════════════════════════════════════════════════════
+def _fetch_existing_consensus(series_dates, headers):
+    """Fetch existing consensus rows so we don't overwrite actual/prior with null."""
+    existing = {}  # (series_id, release_date) → row
+    if not series_dates:
+        return existing
+
+    # Build filter: series_id in (...) and release_date in (...)
+    sids = sorted({sd[0] for sd in series_dates})
+    dates = sorted({sd[1] for sd in series_dates})
+    params = (
+        f"?select=series_id,release_date,estimate,actual,prior"
+        f"&series_id=in.({','.join(sids)})"
+        f"&release_date=in.({','.join(dates)})"
+    )
+    try:
+        res = requests.get(
+            f"{SUPABASE_URL}/rest/v1/consensus{params}",
+            headers={
+                "apikey": headers["apikey"],
+                "Authorization": headers["Authorization"],
+                "Accept": "application/json",
+            },
+            timeout=10,
+        )
+        if res.status_code == 200:
+            for row in res.json():
+                key = (row['series_id'], row['release_date'])
+                existing[key] = row
+    except requests.RequestException:
+        pass
+    return existing
+
+
 def upsert_to_supabase(records):
     """Upsert economic calendar records to Supabase."""
     log.info("── Supabase Upsert ──────────────────────────────")
@@ -1548,18 +1581,40 @@ def upsert_to_supabase(records):
         "Prefer": "resolution=merge-duplicates",
     }
 
-    rows = [{
-        "series_id":    r['series_id'],
-        "release_name": r.get('release_name', ''),
-        "release_date": r['release_date'],
-        "estimate":     r.get('estimate'),
-        "actual":       r.get('actual'),
-        "prior":        r.get('prior'),
-        "unit":         r.get('unit', ''),
-        "source":       r.get('source', ''),
-        "impact":       r.get('impact', 'low'),
-        "updated_at":   datetime.utcnow().isoformat(),
-    } for r in records]
+    # Fetch existing rows so we preserve actual/prior values that were
+    # previously populated — the scraper often returns null for these
+    # fields when the data hasn't been released yet or the source is down.
+    series_dates = [(r['series_id'], r['release_date']) for r in records]
+    existing = _fetch_existing_consensus(series_dates, headers)
+
+    rows = []
+    for r in records:
+        key = (r['series_id'], r['release_date'])
+        prev = existing.get(key, {})
+
+        # Keep existing actual/prior/estimate if the new scrape has null
+        actual = r.get('actual')
+        if actual is None:
+            actual = prev.get('actual')
+        prior = r.get('prior')
+        if prior is None:
+            prior = prev.get('prior')
+        estimate = r.get('estimate')
+        if estimate is None:
+            estimate = prev.get('estimate')
+
+        rows.append({
+            "series_id":    r['series_id'],
+            "release_name": r.get('release_name', ''),
+            "release_date": r['release_date'],
+            "estimate":     estimate,
+            "actual":       actual,
+            "prior":        prior,
+            "unit":         r.get('unit', ''),
+            "source":       r.get('source', ''),
+            "impact":       r.get('impact', 'low'),
+            "updated_at":   datetime.utcnow().isoformat(),
+        })
 
     try:
         res = requests.post(
@@ -1572,7 +1627,8 @@ def upsert_to_supabase(records):
             log.info(f"  Upserted {len(rows)} records to consensus table")
             for r in rows:
                 est = r['estimate'] if r['estimate'] is not None else '—'
-                log.info(f"    {r['series_id']:<22} date={r['release_date']}  est={est}")
+                act = r['actual'] if r['actual'] is not None else '—'
+                log.info(f"    {r['series_id']:<22} date={r['release_date']}  est={est}  act={act}")
         else:
             log.error(f"  Supabase error {res.status_code}: {res.text[:300]}")
     except requests.RequestException as e:
