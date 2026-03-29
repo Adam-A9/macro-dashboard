@@ -67,8 +67,9 @@ HEADERS = {
     "Accept-Encoding": "gzip, deflate",
 }
 
-TODAY  = date.today()
-CUTOFF = TODAY + timedelta(days=90)   # 90-day forward window
+TODAY    = date.today()
+LOOKBACK = TODAY - timedelta(days=7)    # 7-day lookback for recent actuals
+CUTOFF   = TODAY + timedelta(days=90)   # 90-day forward window
 
 # ─── SERIES MAP ──────────────────────────────────────────────
 # Maps lowercase release name fragments → FRED series ID
@@ -211,10 +212,10 @@ def parse_date_flexible(s, year=None):
 
 
 def in_window(date_str):
-    """Check if a date string falls within TODAY → CUTOFF."""
+    """Check if a date string falls within LOOKBACK → CUTOFF."""
     try:
         d = datetime.strptime(date_str, '%Y-%m-%d').date()
-        return TODAY <= d <= CUTOFF
+        return LOOKBACK <= d <= CUTOFF
     except (ValueError, TypeError):
         return False
 
@@ -253,7 +254,7 @@ def scrape_fred_releases():
         f"https://api.stlouisfed.org/fred/releases/dates"
         f"?api_key={FRED_API_KEY}"
         f"&file_type=json"
-        f"&realtime_start={TODAY.isoformat()}"
+        f"&realtime_start={LOOKBACK.isoformat()}"
         f"&realtime_end={CUTOFF.isoformat()}"
         f"&include_release_dates_with_no_data=false"
     )
@@ -1528,6 +1529,93 @@ def fetch_prior_values(records):
 
 
 # ═══════════════════════════════════════════════════════════════
+# ACTUAL VALUES (from FRED observations)
+# ═══════════════════════════════════════════════════════════════
+def fetch_actual_values(records):
+    """
+    For events whose release_date has passed (or is today), fetch the
+    corresponding FRED observation and populate the 'actual' field.
+    Uses the same pct-change / diff transforms as fetch_prior_values()
+    so that units are consistent with estimates.
+    """
+    log.info("── Actual Values (FRED) ─────────────────────────")
+
+    # Only fill actuals for past/today events that are still missing
+    candidates = [
+        r for r in records
+        if r.get('release_date', '') <= TODAY.isoformat()
+        and r.get('actual') is None
+        and r['series_id'] not in _SKIP_SERIES
+    ]
+
+    if not candidates:
+        log.info("  No past events need actuals")
+        return records
+
+    # Deduplicate by series_id — each series appears at most once per fetch
+    seen_sids = set()
+    unique = []
+    for r in candidates:
+        if r['series_id'] not in seen_sids:
+            seen_sids.add(r['series_id'])
+            unique.append(r)
+
+    actual_map = {}  # series_id → actual value
+
+    for r in unique:
+        sid = r['series_id']
+        # Fetch the two most recent observations (need two for pct-change / diff)
+        limit = 3 if sid in _PCT_CHANGE_SERIES or sid in _DIFF_SERIES else 2
+        url = (
+            f"https://api.stlouisfed.org/fred/series/observations"
+            f"?series_id={sid}&api_key={FRED_API_KEY}"
+            f"&file_type=json&sort_order=desc&limit={limit}"
+        )
+        resp = safe_get(url, retries=2, timeout=10)
+        if not resp:
+            continue
+        try:
+            obs = resp.json().get('observations', [])
+            if not obs:
+                continue
+
+            # The most recent observation is the "actual" for the latest release.
+            raw = obs[0].get('value', '').strip()
+            if raw in ('', '.'):
+                continue
+            val = float(raw)
+
+            if sid in _PCT_CHANGE_SERIES and len(obs) >= 2:
+                prev_raw = obs[1].get('value', '').strip()
+                if prev_raw not in ('', '.'):
+                    prev_val = float(prev_raw)
+                    if prev_val != 0:
+                        actual_map[sid] = round((val / prev_val - 1) * 100, 1)
+            elif sid in _DIFF_SERIES and len(obs) >= 2:
+                prev_raw = obs[1].get('value', '').strip()
+                if prev_raw not in ('', '.'):
+                    actual_map[sid] = round(val - float(prev_raw), 1)
+            else:
+                actual_map[sid] = val
+        except (ValueError, KeyError, json.JSONDecodeError) as e:
+            log.warning(f"  Actual parse error for {sid}: {e}")
+
+    # Apply actuals to all matching records
+    applied = 0
+    for r in records:
+        sid = r['series_id']
+        if r.get('actual') is None and sid in actual_map:
+            r['actual'] = actual_map[sid]
+            applied += 1
+
+    log.info(f"  Fetched actuals for {len(actual_map)}/{len(unique)} series, applied to {applied} records")
+    for sid, val in sorted(actual_map.items()):
+        log.info(f"    {sid:<22} actual={val}")
+
+    return records
+
+
+# ═══════════════════════════════════════════════════════════════
 # SUPABASE UPSERT
 # ═══════════════════════════════════════════════════════════════
 def _fetch_existing_consensus(series_dates, headers):
@@ -1793,6 +1881,9 @@ if __name__ == "__main__":
 
     # ── Fetch prior values from FRED ──
     merged = fetch_prior_values(merged)
+
+    # ── Fetch actual values from FRED for past events ──
+    merged = fetch_actual_values(merged)
 
     # ── Print results ──
     print_summary(merged, market_data)
