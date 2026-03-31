@@ -1,19 +1,22 @@
 name: Economic Calendar Scraper
 
-# Schedule: runs twice daily at optimal times for US economic data
-#   06:00 AM ET (11:00 UTC) — before US markets open, captures overnight updates
-#   04:00 PM ET (21:00 UTC) — after most releases, captures actuals & next-day consensus
+# Schedule: 4x daily on weekdays, timed for US economic releases
+#   06:00 AM ET (11:00 UTC) — Pre-market: overnight updates, consensus estimates
+#   08:45 AM ET (13:45 UTC) — Catches 8:30 AM releases (NFP, CPI, PPI, GDP, etc.)
+#   11:00 AM ET (16:00 UTC) — Catches 10:00 AM releases (ISM, JOLTS, housing)
+#   04:00 PM ET (21:00 UTC) — End of day: remaining actuals + next-day estimates
 on:
   schedule:
-    - cron: '0 11 * * 1-5'   # 6:00 AM ET, weekdays only
-    - cron: '0 16 * * 1-5'   # 11:00 AM ET — captures morning actuals (8:30/10:00 releases)
-    - cron: '0 21 * * 1-5'   # 4:00 PM ET, captures remaining actuals & next-day consensus
-  workflow_dispatch:           # allow manual trigger from GitHub UI
+    - cron: '0 11 * * 1-5'    # 6:00 AM ET
+    - cron: '45 13 * * 1-5'   # 8:45 AM ET — RIGHT AFTER 8:30 releases
+    - cron: '0 16 * * 1-5'    # 11:00 AM ET — after 10:00 releases
+    - cron: '0 21 * * 1-5'    # 4:00 PM ET — end of day sweep
+  workflow_dispatch:            # manual trigger
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository

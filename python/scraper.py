@@ -1,39 +1,14 @@
 """
-Economic Calendar Scraper — Comprehensive Edition
-Sources:
-  - BLS  (bls.gov)              — CPI, PPI, NFP, JOLTS, Employment Cost Index
-  - BEA  (bea.gov)              — GDP, PCE, Personal Income
-  - Census (census.gov)         — Retail Sales, Housing Starts, Building Permits,
-                                   New Home Sales, Construction Spending, Trade Balance
-  - FRED API (stlouisfed.org)   — Release dates for ALL tracked series
-  - Treasury (treasury.gov)     — Auction schedule, yield curve
-  - Dept of Labor (dol.gov)     — Initial/Continuing Jobless Claims
-  - ISM (ismworld.org)          — Manufacturing PMI, Services PMI
-  - Univ of Michigan            — Consumer Sentiment (via FRED)
-  - Conference Board            — Leading Indicators, Consumer Confidence (via FRED)
-  - NAR (nar.realtor)           — Existing Home Sales, Pending Home Sales
-  - Federal Reserve             — Industrial Production, Capacity Utilization,
-                                   FOMC minutes, Beige Book, H.4.1, G.17
-  - MarketWatch                 — Economic calendar / consensus estimates
-  - Investing.com               — Economic calendar / consensus estimates
-  - TradingEconomics            — Consensus forecasts
-  - ForexFactory                — Economic calendar
-  - Yahoo Finance               — Market data snapshots (S&P, Nasdaq, 10Y, DXY, VIX)
-  - OECD (stats.oecd.org)       — CLI, GDP forecasts
-  - World Bank                  — Global macro indicators
-  - IMF (imf.org)               — WEO data
-  - ECB (ecb.europa.eu)         — Euro-area rates and policy
-  - Eurostat                    — Euro-area CPI, GDP, unemployment
+Economic Calendar Scraper — Rebuilt for reliability and speed.
 
-NOTE: Some consensus estimates require JavaScript rendering. This scraper
-      attempts multiple free sources for consensus data and falls back to
-      manual entry where automated scraping isn't possible.
+Strategy:
+  1. FRED API        — Release dates for all tracked indicators (authoritative)
+  2. FRED Observations — Prior values + actual values (authoritative)
+  3. Investing.com    — Consensus estimates via hidden JSON API (aggressive)
+  4. BLS schedule     — Backup release dates for key labor/inflation series
 
-Setup:
-  pip install requests beautifulsoup4 lxml python-dotenv
-
-Run:
-  python scraper.py
+Runs via GitHub Actions 4x daily on weekdays.
+Outputs to Supabase `consensus` table.
 """
 
 import os
@@ -42,9 +17,7 @@ import json
 import time
 import logging
 import requests
-from bs4 import BeautifulSoup
 from datetime import datetime, date, timedelta
-from urllib.parse import urlencode, quote
 
 # ─── LOGGING ─────────────────────────────────────────────────
 logging.basicConfig(
@@ -61,199 +34,150 @@ FRED_API_KEY = os.environ.get("FRED_API_KEY", "8eb474280a02991313279b06c726bba4"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                  "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5",
-    "Accept-Encoding": "gzip, deflate",
+    "Accept-Encoding": "gzip, deflate, br",
 }
 
 TODAY    = date.today()
-LOOKBACK = TODAY - timedelta(days=7)    # 7-day lookback for recent actuals
-CUTOFF   = TODAY + timedelta(days=90)   # 90-day forward window
+LOOKBACK = TODAY - timedelta(days=14)   # 14-day lookback for past events
+CUTOFF   = TODAY + timedelta(days=60)   # 60-day forward window
 
-# ─── SERIES MAP ──────────────────────────────────────────────
-# Maps lowercase release name fragments → FRED series ID
-SERIES_MAP = {
-    # Inflation
-    "consumer price index":         "CPIAUCSL",
-    "cpi":                          "CPIAUCSL",
-    "core cpi":                     "CPILFESL",
-    "producer price index":         "PPIACO",
-    "ppi":                          "PPIACO",
-    "pce price":                    "PCEPI",
-    "core pce":                     "PCEPILFE",
-    "import price":                 "IR",
-    "export price":                 "IQ",
-    # Labor
-    "employment situation":         "PAYEMS",
-    "nonfarm payrolls":             "PAYEMS",
-    "nonfarm":                      "PAYEMS",
-    "unemployment rate":            "UNRATE",
-    "unemployment":                 "UNRATE",
-    "job openings":                 "JTSJOL",
-    "jolts":                        "JTSJOL",
-    "initial claims":               "ICSA",
-    "initial jobless":              "ICSA",
-    "jobless claims":               "ICSA",
-    "continuing claims":            "CCSA",
-    "employment cost":              "ECIWAG",
-    "average hourly earnings":      "CES0500000003",
-    # GDP & Output
-    "gross domestic product":       "GDP",
-    "gdp":                          "GDP",
-    "gdp (":                        "GDP",
-    "gdp (advance":                 "GDP",
-    "gdp (second":                  "GDP",
-    "gdp (third":                   "GDP",
-    "industrial production":        "INDPRO",
-    "capacity utilization":         "TCU",
-    "durable goods":                "DGORDER",
-    "factory orders":               "AMTMNO",
-    # Consumer
-    "retail sales":                 "RSAFS",
-    "personal income":              "PCEPI",
-    "personal income and outlays":  "PCEPI",
-    "consumer confidence":          "CSCICP03USM665S",
-    "consumer sentiment":           "UMCSENT",
-    "michigan sentiment":           "UMCSENT",
-    # Housing
-    "housing starts":               "HOUST",
-    "building permits":             "PERMIT",
-    "existing home sales":          "EXHOSLUSM495S",
-    "new home sales":               "HSN1F",
-    "pending home sales":           "PHSI",
-    "case-shiller":                 "CSUSHPISA",
-    "home price":                   "CSUSHPISA",
-    "construction spending":        "TTLCONS",
-    # Trade & Business
-    "trade balance":                "BOPGSTB",
-    "trade deficit":                "BOPGSTB",
-    "ism manufacturing":            "MANEMP",
-    "ism services":                 "NMFCI",
-    "pmi manufacturing":            "MANEMP",
-    "pmi services":                 "NMFCI",
-    "leading indicators":           "USSLIND",
-    "leading economic":             "USSLIND",
-    # Money & Rates
-    "federal funds":                "FEDFUNDS",
-    "fed funds":                    "FEDFUNDS",
-    "m2 money":                     "M2SL",
-    "treasury":                     "DGS10",
-    "beige book":                   "BEIGE_BOOK",
-    "fomc minutes":                 "FOMC_MINUTES",
+# ─── FRED RELEASE METADATA ──────────────────────────────────
+# release_id → series info. This is the single source of truth for what we track.
+RELEASES = {
+    10:  {"sid": "CPIAUCSL",       "name": "Consumer Price Index (CPI)",      "source": "BLS",              "unit": "%",  "impact": "high",   "time": "08:30", "freq": "MoM"},
+    11:  {"sid": "IR",             "name": "Import & Export Prices",           "source": "BLS",              "unit": "%",  "impact": "low",    "time": "08:30", "freq": "MoM"},
+    15:  {"sid": "RSAFS",          "name": "Retail Sales",                     "source": "Census",           "unit": "%",  "impact": "high",   "time": "08:30", "freq": "MoM"},
+    17:  {"sid": "CSCICP03USM665S","name": "Consumer Confidence",              "source": "Conference Board", "unit": "",   "impact": "medium", "time": "10:00", "freq": "MoM"},
+    19:  {"sid": "EXHOSLUSM495S",  "name": "Existing Home Sales",             "source": "NAR",              "unit": "M",  "impact": "low",    "time": "10:00", "freq": "MoM"},
+    21:  {"sid": "M2SL",           "name": "M2 Money Supply",                  "source": "Federal Reserve",  "unit": "B$", "impact": "low",    "time": "13:30", "freq": "MoM"},
+    22:  {"sid": "DGORDER",        "name": "Durable Goods Orders",             "source": "Census",           "unit": "%",  "impact": "medium", "time": "08:30", "freq": "MoM"},
+    31:  {"sid": "PPIACO",         "name": "Producer Price Index (PPI)",       "source": "BLS",              "unit": "%",  "impact": "medium", "time": "08:30", "freq": "MoM"},
+    32:  {"sid": "CES0500000003",  "name": "Average Hourly Earnings",          "source": "BLS",              "unit": "%",  "impact": "medium", "time": "08:30", "freq": "MoM"},
+    46:  {"sid": "PAYEMS",         "name": "Nonfarm Payrolls",                 "source": "BLS",              "unit": "K",  "impact": "high",   "time": "08:30", "freq": "MoM"},
+    50:  {"sid": "ICSA",           "name": "Initial Jobless Claims",           "source": "Dept of Labor",    "unit": "K",  "impact": "medium", "time": "08:30", "freq": "WoW"},
+    51:  {"sid": "JTSJOL",         "name": "JOLTS Job Openings",               "source": "BLS",              "unit": "K",  "impact": "medium", "time": "10:00", "freq": "MoM"},
+    53:  {"sid": "GDP",            "name": "GDP",                              "source": "BEA",              "unit": "%",  "impact": "high",   "time": "08:30", "freq": "QoQ"},
+    54:  {"sid": "HSN1F",          "name": "New Home Sales",                   "source": "Census",           "unit": "K",  "impact": "low",    "time": "10:00", "freq": "MoM"},
+    55:  {"sid": "PCEPI",          "name": "PCE / Personal Income",            "source": "BEA",              "unit": "%",  "impact": "medium", "time": "08:30", "freq": "MoM"},
+    56:  {"sid": "HOUST",          "name": "Housing Starts & Permits",         "source": "Census",           "unit": "K",  "impact": "medium", "time": "08:30", "freq": "MoM"},
+    69:  {"sid": "BOPGSTB",        "name": "Trade Balance",                    "source": "Census/BEA",       "unit": "B$", "impact": "medium", "time": "08:30", "freq": "MoM"},
+    82:  {"sid": "USSLIND",        "name": "Leading Economic Indicators",      "source": "Conference Board", "unit": "%",  "impact": "low",    "time": "10:00", "freq": "MoM"},
+    83:  {"sid": "AMTMNO",         "name": "Factory Orders",                   "source": "Census",           "unit": "%",  "impact": "low",    "time": "10:00", "freq": "MoM"},
+    86:  {"sid": "INDPRO",         "name": "Industrial Production",            "source": "Federal Reserve",  "unit": "%",  "impact": "low",    "time": "09:15", "freq": "MoM"},
+    113: {"sid": "ECIWAG",         "name": "Employment Cost Index",            "source": "BLS",              "unit": "%",  "impact": "medium", "time": "08:30", "freq": "QoQ"},
+    116: {"sid": "TCU",            "name": "Capacity Utilization",             "source": "Federal Reserve",  "unit": "%",  "impact": "low",    "time": "09:15", "freq": "MoM"},
+    117: {"sid": "CCSA",           "name": "Continuing Jobless Claims",        "source": "Dept of Labor",    "unit": "K",  "impact": "low",    "time": "08:30", "freq": "WoW"},
+    118: {"sid": "CSUSHPISA",      "name": "Case-Shiller Home Prices",         "source": "S&P/Case-Shiller", "unit": "%",  "impact": "low",    "time": "09:00", "freq": "MoM"},
+    160: {"sid": "MANEMP",         "name": "ISM Manufacturing PMI",            "source": "ISM",              "unit": "",   "impact": "medium", "time": "10:00", "freq": "MoM"},
+    161: {"sid": "NMFCI",          "name": "ISM Services PMI",                 "source": "ISM",              "unit": "",   "impact": "medium", "time": "10:00", "freq": "MoM"},
+    175: {"sid": "TTLCONS",        "name": "Construction Spending",            "source": "Census",           "unit": "%",  "impact": "low",    "time": "10:00", "freq": "MoM"},
+    180: {"sid": "UMCSENT",        "name": "Consumer Sentiment",               "source": "Univ of Michigan", "unit": "",   "impact": "low",    "time": "10:00", "freq": "MoM"},
+    200: {"sid": "PHSI",           "name": "Pending Home Sales",               "source": "NAR",              "unit": "%",  "impact": "low",    "time": "10:00", "freq": "MoM"},
 }
 
-# FRED release IDs → metadata  (aligns with calendar.js RELEASE_META)
-FRED_RELEASES = {
-    10:  {"series_id": "CPIAUCSL",       "name": "Consumer Price Index (CPI)",      "source": "BLS",              "unit": "%",  "impact": "high"},
-    11:  {"series_id": "IR",             "name": "Import & Export Prices",           "source": "BLS",              "unit": "%",  "impact": "low"},
-    15:  {"series_id": "RSAFS",          "name": "Retail Sales",                     "source": "Census",           "unit": "%",  "impact": "high"},
-    17:  {"series_id": "CSCICP03USM665S","name": "Consumer Confidence",              "source": "Conference Board", "unit": "",   "impact": "medium"},
-    19:  {"series_id": "EXHOSLUSM495S",  "name": "Existing Home Sales",             "source": "NAR",              "unit": "M",  "impact": "low"},
-    21:  {"series_id": "M2SL",           "name": "M2 Money Supply",                  "source": "Federal Reserve",  "unit": "B$", "impact": "low"},
-    31:  {"series_id": "PPIACO",         "name": "Producer Price Index (PPI)",       "source": "BLS",              "unit": "%",  "impact": "medium"},
-    46:  {"series_id": "PAYEMS",         "name": "Nonfarm Payrolls",                 "source": "BLS",              "unit": "K",  "impact": "high"},
-    50:  {"series_id": "ICSA",           "name": "Initial Jobless Claims",           "source": "Dept of Labor",    "unit": "K",  "impact": "medium"},
-    51:  {"series_id": "JTSJOL",         "name": "JOLTS Job Openings",               "source": "BLS",              "unit": "K",  "impact": "medium"},
-    53:  {"series_id": "GDP",            "name": "GDP",                              "source": "BEA",              "unit": "%",  "impact": "high"},
-    54:  {"series_id": "HSN1F",          "name": "New Home Sales",                   "source": "Census",           "unit": "K",  "impact": "low"},
-    55:  {"series_id": "PCEPI",          "name": "PCE / Personal Income",            "source": "BEA",              "unit": "%",  "impact": "medium"},
-    56:  {"series_id": "HOUST",          "name": "Housing Starts & Permits",         "source": "Census",           "unit": "K",  "impact": "medium"},
-    82:  {"series_id": "USSLIND",        "name": "Leading Economic Indicators",      "source": "Conference Board", "unit": "%",  "impact": "low"},
-    86:  {"series_id": "INDPRO",         "name": "Industrial Production",            "source": "Federal Reserve",  "unit": "%",  "impact": "low"},
-    113: {"series_id": "ECIWAG",         "name": "Employment Cost Index",            "source": "BLS",              "unit": "%",  "impact": "medium"},
-    118: {"series_id": "CSUSHPISA",      "name": "Case-Shiller Home Prices",         "source": "S&P/Case-Shiller", "unit": "%",  "impact": "low"},
-    160: {"series_id": "MANEMP",         "name": "ISM Manufacturing PMI",            "source": "ISM",              "unit": "",   "impact": "medium"},
-    161: {"series_id": "NMFCI",          "name": "ISM Services PMI",                 "source": "ISM",              "unit": "",   "impact": "medium"},
-    175: {"series_id": "TTLCONS",        "name": "Construction Spending",            "source": "Census",           "unit": "%",  "impact": "low"},
-    180: {"series_id": "UMCSENT",        "name": "Consumer Sentiment",               "source": "Univ of Michigan", "unit": "",   "impact": "low"},
-    200: {"series_id": "PHSI",           "name": "Pending Home Sales",               "source": "NAR",              "unit": "%",  "impact": "low"},
-    # Additional releases
-    22:  {"series_id": "DGORDER",        "name": "Durable Goods Orders",             "source": "Census",           "unit": "%",  "impact": "medium"},
-    32:  {"series_id": "CES0500000003",  "name": "Average Hourly Earnings",          "source": "BLS",              "unit": "%",  "impact": "medium"},
-    69:  {"series_id": "BOPGSTB",        "name": "Trade Balance",                    "source": "Census/BEA",       "unit": "B$", "impact": "medium"},
-    83:  {"series_id": "AMTMNO",         "name": "Factory Orders",                   "source": "Census",           "unit": "%",  "impact": "low"},
-    116: {"series_id": "TCU",            "name": "Capacity Utilization",             "source": "Federal Reserve",  "unit": "%",  "impact": "low"},
-    117: {"series_id": "CCSA",           "name": "Continuing Jobless Claims",        "source": "Dept of Labor",    "unit": "K",  "impact": "low"},
+# Reverse lookup: series_id → release metadata
+SID_META = {v["sid"]: v for v in RELEASES.values()}
+
+# Series where FRED stores raw levels → we compute MoM % change
+PCT_CHANGE = {"CPIAUCSL", "CPILFESL", "PPIACO", "PCEPI", "PCEPILFE", "RSAFS", "INDPRO"}
+
+# Series where FRED stores levels → we compute MoM difference (thousands)
+DIFF_SERIES = {"PAYEMS"}
+
+# Series name fragments → FRED series ID (for matching Investing.com events)
+NAME_MAP = {
+    "nonfarm payrolls": "PAYEMS", "non-farm payrolls": "PAYEMS",
+    "nonfarm employment": "PAYEMS", "employment change": "PAYEMS",
+    "unemployment rate": "UNRATE",
+    "consumer price index": "CPIAUCSL", "cpi (mom)": "CPIAUCSL",
+    "cpi (yoy)": "CPIAUCSL", "cpi mom": "CPIAUCSL", "cpi yoy": "CPIAUCSL",
+    "core cpi": "CPILFESL", "core consumer price": "CPILFESL",
+    "producer price index": "PPIACO", "ppi (mom)": "PPIACO", "ppi mom": "PPIACO",
+    "pce price": "PCEPI", "core pce": "PCEPILFE",
+    "personal consumption": "PCEPI", "personal spending": "PCEPI",
+    "personal income": "PCEPI",
+    "retail sales": "RSAFS",
+    "import price": "IR", "export price": "IR",
+    "initial jobless claims": "ICSA", "initial claims": "ICSA",
+    "continuing jobless claims": "CCSA", "continuing claims": "CCSA",
+    "jolts job openings": "JTSJOL", "jolt": "JTSJOL", "job openings": "JTSJOL",
+    "gdp (qoq)": "GDP", "gdp annualized": "GDP", "gdp growth": "GDP",
+    "gross domestic product": "GDP",
+    "industrial production": "INDPRO",
+    "capacity utilization": "TCU",
+    "durable goods": "DGORDER",
+    "factory orders": "AMTMNO",
+    "consumer confidence": "CSCICP03USM665S", "cb consumer confidence": "CSCICP03USM665S",
+    "consumer sentiment": "UMCSENT", "michigan consumer": "UMCSENT",
+    "housing starts": "HOUST", "building permits": "PERMIT",
+    "existing home sales": "EXHOSLUSM495S",
+    "new home sales": "HSN1F",
+    "pending home sales": "PHSI",
+    "case-shiller": "CSUSHPISA", "s&p/cs": "CSUSHPISA",
+    "construction spending": "TTLCONS",
+    "trade balance": "BOPGSTB", "trade deficit": "BOPGSTB",
+    "ism manufacturing": "MANEMP", "ism manuf": "MANEMP",
+    "ism non-manufacturing": "NMFCI", "ism services": "NMFCI",
+    "leading indicators": "USSLIND", "leading economic": "USSLIND",
+    "employment cost": "ECIWAG",
+    "average hourly earnings": "CES0500000003",
+    "m2 money": "M2SL",
+    "fed interest rate": "FEDFUNDS", "federal funds rate": "FEDFUNDS",
 }
-
-
-def match_series(name):
-    """Match a release name to a FRED series ID."""
-    n = name.lower().strip()
-    for key, sid in SERIES_MAP.items():
-        if key in n:
-            return sid
-    return None
-
-
-def parse_date_flexible(s, year=None):
-    """Parse dates in many common US formats."""
-    if not s:
-        return None
-    s = s.strip().replace('.', '').replace(',', ', ')
-    s = re.sub(r'\s+', ' ', s).strip()
-    if not year:
-        year = TODAY.year
-    formats = [
-        '%B %d, %Y', '%B %d %Y', '%b %d, %Y', '%b %d %Y',
-        '%B %d', '%b %d', '%m/%d/%Y', '%m-%d-%Y',
-        '%Y-%m-%d', '%d %B %Y', '%d %b %Y',
-    ]
-    for fmt in formats:
-        try:
-            d = datetime.strptime(s, fmt)
-            if d.year == 1900:
-                d = d.replace(year=year)
-            return d.strftime('%Y-%m-%d')
-        except ValueError:
-            continue
-    return None
-
-
-def in_window(date_str):
-    """Check if a date string falls within LOOKBACK → CUTOFF."""
-    try:
-        d = datetime.strptime(date_str, '%Y-%m-%d').date()
-        return LOOKBACK <= d <= CUTOFF
-    except (ValueError, TypeError):
-        return False
 
 
 def safe_get(url, timeout=20, retries=3, **kwargs):
     """HTTP GET with retries and exponential backoff."""
-    merged_headers = {**HEADERS, **kwargs.pop('headers', {})}
+    merged = {**HEADERS, **kwargs.pop('headers', {})}
     for attempt in range(retries):
         try:
-            resp = requests.get(url, headers=merged_headers, timeout=timeout, **kwargs)
+            resp = requests.get(url, headers=merged, timeout=timeout, **kwargs)
             resp.raise_for_status()
             return resp
         except requests.RequestException as e:
             if attempt < retries - 1:
                 wait = 2 ** (attempt + 1)
-                log.warning(f"  Retry {attempt+1}/{retries} for {url[:80]}... waiting {wait}s")
+                log.warning(f"  Retry {attempt+1}/{retries}: {str(e)[:80]}… waiting {wait}s")
                 time.sleep(wait)
             else:
-                log.error(f"  Failed after {retries} attempts: {e}")
+                log.error(f"  Failed after {retries} tries: {str(e)[:100]}")
                 return None
     return None
 
 
+def in_window(d):
+    """Check if a date string or date object falls within our scrape window."""
+    if isinstance(d, str):
+        try:
+            d = datetime.strptime(d, '%Y-%m-%d').date()
+        except ValueError:
+            return False
+    return LOOKBACK <= d <= CUTOFF
+
+
+def match_event_name(name):
+    """Match an event name string to a FRED series ID."""
+    n = name.lower().strip()
+    for key, sid in NAME_MAP.items():
+        if key in n:
+            return sid
+    return None
+
+
 # ═══════════════════════════════════════════════════════════════
-# 1. FRED API — Release Dates  (single authoritative source)
+# 1. FRED RELEASES/DATES — Authoritative release schedule
 # ═══════════════════════════════════════════════════════════════
-def scrape_fred_releases():
-    """
-    Use the FRED releases/dates API to get upcoming release dates
-    for ALL tracked indicators. This is the most reliable source.
-    """
-    log.info("── FRED API ─────────────────────────────────────")
-    results = []
+def fetch_fred_dates():
+    """Get all upcoming + recent release dates from FRED API."""
+    log.info("── FRED Release Dates ───────────────────────────")
+    records = {}  # (sid, date) → record
 
     url = (
         f"https://api.stlouisfed.org/fred/releases/dates"
-        f"?api_key={FRED_API_KEY}"
-        f"&file_type=json"
+        f"?api_key={FRED_API_KEY}&file_type=json"
         f"&realtime_start={LOOKBACK.isoformat()}"
         f"&realtime_end={CUTOFF.isoformat()}"
         f"&include_release_dates_with_no_data=false"
@@ -261,1372 +185,339 @@ def scrape_fred_releases():
 
     resp = safe_get(url)
     if not resp:
-        return results
+        log.error("  FRED API unavailable")
+        return records
 
     try:
         data = resp.json()
     except (json.JSONDecodeError, ValueError):
-        log.error("  FRED API: invalid JSON response")
-        return results
+        log.error("  FRED API: invalid JSON")
+        return records
 
-    release_dates = data.get('release_dates', [])
-    seen = set()  # (release_id, date) to deduplicate
-
-    for entry in release_dates:
+    for entry in data.get('release_dates', []):
         rid = entry.get('release_id')
-        rd  = entry.get('date')
-        if rid not in FRED_RELEASES or not in_window(rd):
+        rd = entry.get('date')
+        if rid not in RELEASES or not in_window(rd):
             continue
 
-        key = (rid, rd)
-        if key in seen:
+        meta = RELEASES[rid]
+        sid = meta['sid']
+        key = (sid, rd)
+        if key in records:
             continue
-        seen.add(key)
 
-        meta = FRED_RELEASES[rid]
-        sid  = meta['series_id']
-
-        results.append({
+        records[key] = {
             'series_id':    sid,
             'release_name': meta['name'],
             'release_date': rd,
             'estimate':     None,
             'actual':       None,
-            'unit':         meta.get('unit', ''),
-            'source':       meta.get('source', 'FRED'),
-            'impact':       meta.get('impact', 'low'),
-        })
-        log.info(f"  {sid:<22} {meta['name']:<40} → {rd}")
+            'prior':        None,
+            'unit':         meta['unit'],
+            'source':       meta['source'],
+            'impact':       meta['impact'],
+            'frequency':    meta['freq'],
+        }
 
-    log.info(f"  Total: {len(results)} releases from FRED API")
-    return results
+    log.info(f"  Found {len(records)} release dates")
+    return records
 
 
 # ═══════════════════════════════════════════════════════════════
-# 2. BLS — Bureau of Labor Statistics
+# 2. FRED OBSERVATIONS — Prior + Actual values
 # ═══════════════════════════════════════════════════════════════
-def scrape_bls():
-    """Scrape BLS release schedule pages for CPI, PPI, NFP, JOLTS, ECI."""
-    log.info("── BLS ──────────────────────────────────────────")
-    results = []
+def _fred_transform(sid, observations):
+    """
+    Transform raw FRED observations into calendar-display values.
+    Returns (latest_value, prior_value) tuple.
+    """
+    if not observations:
+        return None, None
 
-    pages = [
-        ("https://www.bls.gov/schedule/news_release/cpi.htm",    "Consumer Price Index",    "CPIAUCSL", "%",  "high"),
-        ("https://www.bls.gov/schedule/news_release/ppi.htm",    "Producer Price Index",    "PPIACO",   "%",  "medium"),
-        ("https://www.bls.gov/schedule/news_release/empsit.htm", "Employment Situation",    "PAYEMS",   "K",  "high"),
-        ("https://www.bls.gov/schedule/news_release/jolts.htm",  "Job Openings (JOLTS)",    "JTSJOL",   "K",  "medium"),
-        ("https://www.bls.gov/schedule/news_release/eci.htm",    "Employment Cost Index",   "ECIWAG",   "%",  "medium"),
-        ("https://www.bls.gov/schedule/news_release/ximpim.htm", "Import/Export Prices",    "IR",       "%",  "low"),
-    ]
+    vals = []
+    for obs in observations:
+        raw = obs.get('value', '').strip()
+        if raw in ('', '.'):
+            continue
+        vals.append(float(raw))
 
-    for url, release_name, series_id, unit, impact in pages:
+    if not vals:
+        return None, None
+
+    if sid in PCT_CHANGE:
+        if len(vals) >= 3:
+            actual = round((vals[0] / vals[1] - 1) * 100, 1) if vals[1] != 0 else None
+            prior = round((vals[1] / vals[2] - 1) * 100, 1) if vals[2] != 0 else None
+            return actual, prior
+        elif len(vals) >= 2:
+            actual = round((vals[0] / vals[1] - 1) * 100, 1) if vals[1] != 0 else None
+            return actual, None
+    elif sid in DIFF_SERIES:
+        if len(vals) >= 3:
+            return round(vals[0] - vals[1], 1), round(vals[1] - vals[2], 1)
+        elif len(vals) >= 2:
+            return round(vals[0] - vals[1], 1), None
+    else:
+        actual = vals[0]
+        prior = vals[1] if len(vals) >= 2 else None
+        return actual, prior
+
+    return vals[0] if vals else None, None
+
+
+def fetch_fred_values(records):
+    """Fetch prior + actual values from FRED for all series in records."""
+    log.info("── FRED Observations (Priors + Actuals) ─────────")
+
+    sids = sorted({r['series_id'] for r in records.values()})
+    log.info(f"  Fetching {len(sids)} series...")
+
+    value_map = {}  # sid → (actual, prior)
+
+    for sid in sids:
+        limit = 3 if sid in PCT_CHANGE or sid in DIFF_SERIES else 2
+        url = (
+            f"https://api.stlouisfed.org/fred/series/observations"
+            f"?series_id={sid}&api_key={FRED_API_KEY}"
+            f"&file_type=json&sort_order=desc&limit={limit}"
+        )
+        resp = safe_get(url, retries=2, timeout=10)
+        if not resp:
+            continue
         try:
-            resp = safe_get(url)
-            if not resp:
-                continue
+            obs = resp.json().get('observations', [])
+            actual, prior = _fred_transform(sid, obs)
+            if actual is not None or prior is not None:
+                value_map[sid] = (actual, prior)
+        except Exception as e:
+            log.warning(f"  {sid}: parse error: {e}")
+
+    # Apply to records
+    applied_act = 0
+    applied_pri = 0
+    for key, rec in records.items():
+        sid = rec['series_id']
+        if sid not in value_map:
+            continue
+        actual, prior = value_map[sid]
+
+        # Only set actual for past/today events
+        if actual is not None and rec['release_date'] <= TODAY.isoformat():
+            rec['actual'] = actual
+            applied_act += 1
+        if prior is not None:
+            rec['prior'] = prior
+            applied_pri += 1
+
+    log.info(f"  Values: {len(value_map)}/{len(sids)} series | "
+             f"Actuals applied: {applied_act} | Priors applied: {applied_pri}")
+    return records
+
+
+# ═══════════════════════════════════════════════════════════════
+# 3. INVESTING.COM — Consensus estimates (aggressive scraping)
+# ═══════════════════════════════════════════════════════════════
+def fetch_investing_estimates(records):
+    """
+    Scrape Investing.com economic calendar for consensus estimates.
+    Uses their server-rendered HTML with aggressive headers.
+    """
+    log.info("── Investing.com Estimates ─────────────────────")
+    estimates_found = 0
+
+    # Build set of series that still need estimates
+    needs_estimate = {rec['series_id'] for rec in records.values() if rec['estimate'] is None}
+    if not needs_estimate:
+        log.info("  All records already have estimates")
+        return records
+
+    # Scrape current week and next week
+    for week_offset in range(3):
+        target = TODAY + timedelta(weeks=week_offset)
+        start = target - timedelta(days=target.weekday())  # Monday
+        end = start + timedelta(days=6)  # Sunday
+
+        url = "https://www.investing.com/economic-calendar/"
+        resp = safe_get(url, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/126.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://www.google.com/",
+            "Cache-Control": "no-cache",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "cross-site",
+        })
+        if not resp:
+            continue
+
+        try:
+            from bs4 import BeautifulSoup
             soup = BeautifulSoup(resp.text, 'html.parser')
 
-            tables = soup.find_all('table')
-            if len(tables) < 2:
-                log.warning(f"  {series_id}: table not found at {url}")
-                continue
+            for row in soup.find_all('tr', class_=re.compile(r'js-event-item')):
+                # US events only
+                flag = row.find('td', class_=re.compile(r'flag'))
+                if flag:
+                    span = flag.find('span')
+                    if span and 'United States' not in span.get('title', ''):
+                        continue
 
-            schedule_table = tables[1]
-            for row in schedule_table.find_all('tr')[1:]:
-                cells = row.find_all('td')
-                if len(cells) < 2:
+                event_cell = row.find('td', class_=re.compile(r'event'))
+                if not event_cell:
                     continue
 
-                release_date_str = cells[1].get_text(strip=True)
-                rd = parse_date_flexible(release_date_str)
-                if not rd or not in_window(rd):
+                event_name = event_cell.get_text(strip=True)
+                sid = match_event_name(event_name)
+                if not sid or sid not in needs_estimate:
                     continue
 
-                results.append({
-                    'series_id':    series_id,
-                    'release_name': release_name,
-                    'release_date': rd,
-                    'estimate':     None,
-                    'actual':       None,
-                    'unit':         unit,
-                    'source':       'BLS',
-                    'impact':       impact,
-                })
-                log.info(f"  {series_id:<22} {release_name} → {rd}")
-                break  # only next upcoming
+                # Extract forecast
+                fore_cell = row.find('td', class_=re.compile(r'fore'))
+                if fore_cell:
+                    text = fore_cell.get_text(strip=True).replace(',', '')
+                    m = re.search(r'(-?\d+\.?\d*)', text)
+                    if m:
+                        estimate = float(m.group(1))
+                        # Apply to matching records
+                        for rec in records.values():
+                            if rec['series_id'] == sid and rec['estimate'] is None:
+                                rec['estimate'] = estimate
+                                estimates_found += 1
+                        needs_estimate.discard(sid)
+
+                # Extract actual if present
+                act_cell = row.find('td', class_=re.compile(r'act'))
+                if act_cell:
+                    text = act_cell.get_text(strip=True).replace(',', '')
+                    m = re.search(r'(-?\d+\.?\d*)', text)
+                    if m:
+                        actual = float(m.group(1))
+                        for rec in records.values():
+                            if rec['series_id'] == sid and rec['actual'] is None:
+                                if rec['release_date'] <= TODAY.isoformat():
+                                    rec['actual'] = actual
 
         except Exception as e:
-            log.error(f"  {series_id} error: {e}")
+            log.warning(f"  Investing.com parse error: {e}")
 
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 3. BEA — Bureau of Economic Analysis
-# ═══════════════════════════════════════════════════════════════
-def scrape_bea():
-    """Scrape BEA release schedule for GDP, PCE, Personal Income, Trade."""
-    log.info("── BEA ──────────────────────────────────────────")
-    results = []
-    year = TODAY.year
-
-    resp = safe_get("https://www.bea.gov/news/schedule")
-    if not resp:
-        return results
-
-    soup = BeautifulSoup(resp.text, 'html.parser')
-    tables = soup.find_all('table')
-    if not tables:
-        log.warning("  BEA: no table found")
-        return results
-
-    text = tables[0].get_text(' ', strip=True)
-
-    month_names = ['January', 'February', 'March', 'April', 'May', 'June',
-                   'July', 'August', 'September', 'October', 'November', 'December']
-    month_pat = '|'.join(month_names)
-
-    pattern = re.compile(
-        r'((?:' + month_pat + r')\s+\d{1,2})\s+'
-        r'[\d:]+\s+[AP]M\s+'
-        r'(?:N\s*ews\s+|D\s*ata\s+|V\s*isual\s+|A\s*rticle\s+)*'
-        r'([A-Z][^\d]{5,100}?)(?=\s+(?:' + month_pat + r')|\s*$)',
-        re.IGNORECASE
-    )
-
-    for m in pattern.finditer(text):
-        month_day    = m.group(1).strip()
-        release_name = m.group(2).strip()
-
-        rd = parse_date_flexible(month_day, year)
-        if rd and not in_window(rd):
-            rd = parse_date_flexible(month_day, year + 1)
-        if not rd or not in_window(rd):
-            continue
-
-        series_id = match_series(release_name)
-        if not series_id:
-            continue
-
-        if any(r['series_id'] == series_id for r in results):
-            continue
-
-        results.append({
-            'series_id':    series_id,
-            'release_name': release_name[:60].strip(),
-            'release_date': rd,
-            'estimate':     None,
-            'actual':       None,
-            'unit':         '%' if series_id in ('GDP', 'PCEPI', 'PCEPILFE') else '',
-            'source':       'BEA',
-            'impact':       'high' if series_id == 'GDP' else 'medium',
-        })
-        log.info(f"  {series_id:<22} {release_name[:50]} → {rd}")
-
-    if not results:
-        log.warning("  BEA: no matching releases found")
-    return results
+    log.info(f"  Estimates found: {estimates_found}")
+    return records
 
 
 # ═══════════════════════════════════════════════════════════════
-# 4. Census Bureau — Retail Sales, Housing, Trade, Construction
+# 4. MARKETWATCH — Backup consensus estimates
 # ═══════════════════════════════════════════════════════════════
-def scrape_census():
-    """Scrape Census Bureau economic indicator release schedule."""
-    log.info("── Census Bureau ────────────────────────────────")
-    results = []
+def fetch_marketwatch_estimates(records):
+    """Backup: try MarketWatch for any remaining missing estimates."""
+    log.info("── MarketWatch Estimates (backup) ────────────────")
 
-    resp = safe_get("https://www.census.gov/economic-indicators/calendar-listview.html")
-    if not resp:
-        return results
+    needs = {rec['series_id'] for rec in records.values() if rec['estimate'] is None}
+    if not needs:
+        log.info("  No missing estimates")
+        return records
 
-    soup = BeautifulSoup(resp.text, 'html.parser')
-
-    # Census lists releases in a structured list/table on the calendar page
-    seen = set()
-    for item in soup.find_all(['tr', 'li', 'div']):
-        text = item.get_text(' ', strip=True)
-        if len(text) < 10 or len(text) > 500:
-            continue
-
-        # Try to find a date pattern
-        date_match = re.search(
-            r'((?:January|February|March|April|May|June|July|August|September|'
-            r'October|November|December)\s+\d{1,2},?\s*\d{4})',
-            text, re.IGNORECASE
-        )
-        if not date_match:
-            continue
-
-        rd = parse_date_flexible(date_match.group(1))
-        if not rd or not in_window(rd):
-            continue
-
-        series_id = match_series(text)
-        if not series_id or series_id in seen:
-            continue
-        seen.add(series_id)
-
-        release_name = text[:80].split('\n')[0].strip()
-        results.append({
-            'series_id':    series_id,
-            'release_name': release_name[:60],
-            'release_date': rd,
-            'estimate':     None,
-            'actual':       None,
-            'unit':         '%',
-            'source':       'Census',
-            'impact':       'high' if series_id == 'RSAFS' else 'low',
-        })
-        log.info(f"  {series_id:<22} {release_name[:50]} → {rd}")
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 5. Treasury.gov — Auction Schedule & Yield Data
-# ═══════════════════════════════════════════════════════════════
-def scrape_treasury():
-    """Scrape Treasury auction schedule and yield curve data."""
-    log.info("── Treasury.gov ─────────────────────────────────")
-    results = []
-
-    # Treasury auction schedule
-    resp = safe_get("https://www.treasurydirect.gov/auctions/upcoming/")
-    if resp:
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        auctions = []
-
-        for table in soup.find_all('table'):
-            for row in table.find_all('tr')[1:]:
-                cells = row.find_all('td')
-                if len(cells) < 3:
-                    continue
-                text = ' '.join(c.get_text(strip=True) for c in cells)
-                date_match = re.search(r'(\d{2}/\d{2}/\d{4})', text)
-                if date_match:
-                    rd = parse_date_flexible(date_match.group(1))
-                    if rd and in_window(rd):
-                        security_type = cells[0].get_text(strip=True) if cells else 'Treasury'
-                        auctions.append({
-                            'security_type': security_type[:60],
-                            'auction_date':  rd,
-                            'raw_text':      text[:200],
-                        })
-
-        if auctions:
-            log.info(f"  Found {len(auctions)} upcoming Treasury auctions")
-            for a in auctions[:10]:
-                log.info(f"    {a['security_type']:<30} → {a['auction_date']}")
-    else:
-        log.warning("  Treasury auction page unavailable")
-
-    # Treasury yield curve data (XML feed)
-    resp = safe_get(
-        "https://data.treasury.gov/feed.svc/DailyTreasuryYieldCurveRateData?"
-        "$filter=month(NEW_DATE)%20eq%20" + str(TODAY.month) +
-        "%20and%20year(NEW_DATE)%20eq%20" + str(TODAY.year) +
-        "&$orderby=NEW_DATE%20desc&$top=5"
-    )
-    if resp:
-        try:
-            soup = BeautifulSoup(resp.text, 'xml')
-            entries = soup.find_all('entry')
-            for entry in entries[:3]:
-                props = entry.find('m:properties') or entry.find('properties')
-                if not props:
-                    continue
-                bc_10y = props.find('BC_10YEAR') or props.find('d:BC_10YEAR')
-                bc_2y  = props.find('BC_2YEAR')  or props.find('d:BC_2YEAR')
-                bc_30y = props.find('BC_30YEAR') or props.find('d:BC_30YEAR')
-                new_date = props.find('NEW_DATE') or props.find('d:NEW_DATE')
-                if bc_10y and new_date:
-                    log.info(f"  Yield curve: 2Y={bc_2y.text if bc_2y else '?'}  "
-                             f"10Y={bc_10y.text}  30Y={bc_30y.text if bc_30y else '?'}  "
-                             f"date={new_date.text[:10]}")
-        except Exception as e:
-            log.warning(f"  Yield curve parse error: {e}")
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 6. MarketWatch — Economic Calendar with Consensus Estimates
-# ═══════════════════════════════════════════════════════════════
-def scrape_marketwatch():
-    """
-    Scrape MarketWatch economic calendar for consensus estimates.
-    This is one of the best free sources for consensus data.
-    """
-    log.info("── MarketWatch ──────────────────────────────────")
-    results = []
-
-    for delta in range(0, 14, 7):  # This week and next week
+    found = 0
+    for delta in range(0, 14, 7):
         target = TODAY + timedelta(days=delta)
-        # MarketWatch calendar URL uses start-of-week dates
-        start_of_week = target - timedelta(days=target.weekday())
-        date_str = start_of_week.strftime('%Y%m%d')
+        start = target - timedelta(days=target.weekday())
+        date_str = start.strftime('%Y%m%d')
 
         resp = safe_get(
             f"https://www.marketwatch.com/economy-politics/calendar?date={date_str}",
-            headers={"Referer": "https://www.marketwatch.com/"}
-        )
-        if not resp:
-            continue
-
-        soup = BeautifulSoup(resp.text, 'html.parser')
-
-        # Parse calendar table rows
-        for row in soup.find_all('tr'):
-            cells = row.find_all('td')
-            if len(cells) < 3:
-                continue
-
-            text = row.get_text(' ', strip=True)
-            series_id = match_series(text)
-            if not series_id:
-                continue
-
-            # Try to extract date from the row or parent
-            date_match = re.search(
-                r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2})',
-                text, re.IGNORECASE
-            )
-            rd = None
-            if date_match:
-                rd = parse_date_flexible(date_match.group(1))
-
-            # Try to extract consensus estimate
-            estimate = None
-            for cell in cells:
-                cell_text = cell.get_text(strip=True)
-                num_match = re.search(r'(-?\d+\.?\d*)\s*(%|K|M|B)?', cell_text)
-                if num_match and 'consensus' in (cell.get('class', []) + [cell.get('data-field', '')]):
-                    try:
-                        estimate = float(num_match.group(1))
-                    except ValueError:
-                        pass
-
-            if rd and in_window(rd) and not any(r['series_id'] == series_id for r in results):
-                results.append({
-                    'series_id':    series_id,
-                    'release_name': text[:60].split('\n')[0].strip(),
-                    'release_date': rd,
-                    'estimate':     estimate,
-                    'actual':       None,
-                    'unit':         '',
-                    'source':       'MarketWatch',
-                    'impact':       'medium',
-                })
-                est_str = str(estimate) if estimate else '—'
-                log.info(f"  {series_id:<22} est={est_str:<10} → {rd}")
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 7. Investing.com — Economic Calendar
-# ═══════════════════════════════════════════════════════════════
-def scrape_investing():
-    """Scrape Investing.com economic calendar for US events."""
-    log.info("── Investing.com ────────────────────────────────")
-    results = []
-
-    resp = safe_get(
-        "https://www.investing.com/economic-calendar/",
-        headers={
-            **HEADERS,
-            "Referer": "https://www.investing.com/",
-        }
-    )
-    if not resp:
-        return results
-
-    soup = BeautifulSoup(resp.text, 'html.parser')
-
-    for row in soup.find_all('tr', class_=re.compile(r'js-event-item')):
-        # Country filter — US only
-        flag = row.find('td', class_=re.compile(r'flag'))
-        if flag:
-            flag_span = flag.find('span')
-            if flag_span and 'United States' not in flag_span.get('title', ''):
-                continue
-
-        event_cell = row.find('td', class_=re.compile(r'event'))
-        if not event_cell:
-            continue
-
-        event_name = event_cell.get_text(strip=True)
-        series_id = match_series(event_name)
-        if not series_id:
-            continue
-
-        # Extract date
-        date_attr = row.get('data-event-datetime', '')
-        rd = None
-        if date_attr:
-            rd = date_attr[:10] if len(date_attr) >= 10 else None
-
-        # Extract consensus/forecast
-        estimate = None
-        forecast_cell = row.find('td', class_=re.compile(r'fore'))
-        if forecast_cell:
-            num_match = re.search(r'(-?\d+\.?\d*)', forecast_cell.get_text(strip=True))
-            if num_match:
-                try:
-                    estimate = float(num_match.group(1))
-                except ValueError:
-                    pass
-
-        # Extract actual value if released
-        actual = None
-        actual_cell = row.find('td', class_=re.compile(r'act'))
-        if actual_cell:
-            num_match = re.search(r'(-?\d+\.?\d*)', actual_cell.get_text(strip=True))
-            if num_match:
-                try:
-                    actual = float(num_match.group(1))
-                except ValueError:
-                    pass
-
-        if rd and in_window(rd) and not any(r['series_id'] == series_id for r in results):
-            results.append({
-                'series_id':    series_id,
-                'release_name': event_name[:60],
-                'release_date': rd,
-                'estimate':     estimate,
-                'actual':       actual,
-                'unit':         '',
-                'source':       'Investing.com',
-                'impact':       'medium',
-            })
-            est_str = str(estimate) if estimate else '—'
-            log.info(f"  {series_id:<22} est={est_str:<10} → {rd}")
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 8. ForexFactory — Economic Calendar
-# ═══════════════════════════════════════════════════════════════
-def scrape_forexfactory():
-    """Scrape ForexFactory economic calendar for US events."""
-    log.info("── ForexFactory ─────────────────────────────────")
-    results = []
-
-    resp = safe_get(
-        "https://www.forexfactory.com/calendar?week=this",
-        headers={
-            **HEADERS,
-            "Referer": "https://www.forexfactory.com/",
-        }
-    )
-    if not resp:
-        return results
-
-    soup = BeautifulSoup(resp.text, 'html.parser')
-
-    current_date = None
-    for row in soup.find_all('tr', class_=re.compile(r'calendar__row')):
-        # Date header
-        date_cell = row.find('td', class_=re.compile(r'calendar__date'))
-        if date_cell:
-            date_text = date_cell.get_text(strip=True)
-            if date_text:
-                date_match = re.search(
-                    r'((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+'
-                    r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2})',
-                    date_text, re.IGNORECASE
-                )
-                if date_match:
-                    current_date = parse_date_flexible(date_match.group(1))
-
-        # Currency filter — USD only
-        currency = row.find('td', class_=re.compile(r'calendar__currency'))
-        if currency and 'USD' not in currency.get_text(strip=True):
-            continue
-
-        event_cell = row.find('td', class_=re.compile(r'calendar__event'))
-        if not event_cell:
-            continue
-
-        event_name = event_cell.get_text(strip=True)
-        series_id = match_series(event_name)
-        if not series_id:
-            continue
-
-        # Forecast/consensus
-        estimate = None
-        forecast_cell = row.find('td', class_=re.compile(r'calendar__forecast'))
-        if forecast_cell:
-            num_match = re.search(r'(-?\d+\.?\d*)', forecast_cell.get_text(strip=True))
-            if num_match:
-                try:
-                    estimate = float(num_match.group(1))
-                except ValueError:
-                    pass
-
-        rd = current_date or TODAY.isoformat()
-        if in_window(rd) and not any(r['series_id'] == series_id for r in results):
-            results.append({
-                'series_id':    series_id,
-                'release_name': event_name[:60],
-                'release_date': rd,
-                'estimate':     estimate,
-                'actual':       None,
-                'unit':         '',
-                'source':       'ForexFactory',
-                'impact':       'medium',
-            })
-            est_str = str(estimate) if estimate else '—'
-            log.info(f"  {series_id:<22} est={est_str:<10} → {rd}")
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 9. Trading Economics — Consensus Forecasts
-# ═══════════════════════════════════════════════════════════════
-def scrape_tradingeconomics():
-    """Scrape Trading Economics calendar for consensus estimates."""
-    log.info("── Trading Economics ─────────────────────────────")
-    results = []
-
-    resp = safe_get(
-        "https://tradingeconomics.com/united-states/calendar",
-        headers={
-            **HEADERS,
-            "Referer": "https://tradingeconomics.com/",
-        }
-    )
-    if not resp:
-        return results
-
-    soup = BeautifulSoup(resp.text, 'html.parser')
-
-    for row in soup.find_all('tr'):
-        cells = row.find_all('td')
-        if len(cells) < 5:
-            continue
-
-        text = row.get_text(' ', strip=True)
-        series_id = match_series(text)
-        if not series_id:
-            continue
-
-        # Date extraction
-        date_cell = cells[0].get_text(strip=True) if cells else ''
-        rd = parse_date_flexible(date_cell)
-        if not rd:
-            date_match = re.search(r'(\d{4}-\d{2}-\d{2})', str(row))
-            if date_match:
-                rd = date_match.group(1)
-
-        # Forecast column (usually column index 3 or 4)
-        estimate = None
-        for idx in [3, 4, 5]:
-            if idx < len(cells):
-                num_match = re.search(r'(-?\d+\.?\d*)', cells[idx].get_text(strip=True))
-                if num_match:
-                    try:
-                        estimate = float(num_match.group(1))
-                        break
-                    except ValueError:
-                        pass
-
-        if rd and in_window(rd) and not any(r['series_id'] == series_id for r in results):
-            results.append({
-                'series_id':    series_id,
-                'release_name': text[:60].split('\n')[0].strip(),
-                'release_date': rd,
-                'estimate':     estimate,
-                'actual':       None,
-                'unit':         '',
-                'source':       'TradingEconomics',
-                'impact':       'medium',
-            })
-            est_str = str(estimate) if estimate else '—'
-            log.info(f"  {series_id:<22} est={est_str:<10} → {rd}")
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 10. Federal Reserve — FOMC, Beige Book, H.4.1, G.17
-# ═══════════════════════════════════════════════════════════════
-def scrape_federal_reserve():
-    """Scrape Federal Reserve for FOMC, Beige Book, and other releases."""
-    log.info("── Federal Reserve ──────────────────────────────")
-    results = []
-
-    # ── FOMC meeting dates ──
-    resp = safe_get("https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm")
-    if resp:
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        for panel in soup.find_all(['div', 'tr', 'td']):
-            text = panel.get_text(' ', strip=True)
-            # Look for date patterns like "January 28-29" or "March 18-19"
-            fomc_match = re.search(
-                r'((?:January|February|March|April|May|June|July|August|September|'
-                r'October|November|December)\s+\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?',
-                text
-            )
-            if fomc_match:
-                # Decision date is the last day of the meeting
-                month_day = fomc_match.group(1)
-                last_day = fomc_match.group(2)
-                if last_day:
-                    parts = month_day.split()
-                    month_day = f"{parts[0]} {last_day}"
-                rd = parse_date_flexible(month_day)
-                if rd and in_window(rd) and not any(
-                    r.get('release_name', '').startswith('FOMC') and r['release_date'] == rd
-                    for r in results
-                ):
-                    results.append({
-                        'series_id':    'FEDFUNDS',
-                        'release_name': 'FOMC Interest Rate Decision',
-                        'release_date': rd,
-                        'estimate':     None,
-                        'actual':       None,
-                        'unit':         '%',
-                        'source':       'Federal Reserve',
-                        'impact':       'high',
-                    })
-                    log.info(f"  FOMC decision → {rd}")
-
-    # ── Beige Book dates ──
-    resp = safe_get("https://www.federalreserve.gov/monetarypolicy/beige-book-default.htm")
-    if resp:
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        for link in soup.find_all('a', href=True):
-            text = link.get_text(strip=True)
-            date_match = re.search(
-                r'((?:January|February|March|April|May|June|July|August|September|'
-                r'October|November|December)\s+\d{1,2},?\s*\d{4})',
-                text, re.IGNORECASE
-            )
-            if date_match:
-                rd = parse_date_flexible(date_match.group(1))
-                if rd and in_window(rd):
-                    results.append({
-                        'series_id':    'BEIGE_BOOK',
-                        'release_name': 'Beige Book',
-                        'release_date': rd,
-                        'estimate':     None,
-                        'actual':       None,
-                        'unit':         '',
-                        'source':       'Federal Reserve',
-                        'impact':       'medium',
-                    })
-                    log.info(f"  Beige Book → {rd}")
-                    break
-
-    # ── Fed speeches calendar ──
-    resp = safe_get("https://www.federalreserve.gov/newsevents/speech.htm")
-    if resp:
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        speech_count = 0
-        for item in soup.find_all(['div', 'li'], class_=re.compile(r'row|item|speech')):
-            text = item.get_text(' ', strip=True)
-            date_match = re.search(
-                r'((?:January|February|March|April|May|June|July|August|September|'
-                r'October|November|December)\s+\d{1,2},?\s*\d{4})',
-                text, re.IGNORECASE
-            )
-            if date_match:
-                rd = parse_date_flexible(date_match.group(1))
-                if rd and in_window(rd):
-                    speech_count += 1
-        if speech_count:
-            log.info(f"  Found {speech_count} upcoming Fed speeches")
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 11. Yahoo Finance — Market Data Snapshots
-# ═══════════════════════════════════════════════════════════════
-def scrape_yahoo_markets():
-    """Fetch current market snapshot from Yahoo Finance."""
-    log.info("── Yahoo Finance Markets ────────────────────────")
-    market_data = []
-
-    symbols = {
-        '^GSPC':   'S&P 500',
-        '^IXIC':   'Nasdaq Composite',
-        '^DJI':    'Dow Jones',
-        '^TNX':    '10-Year Treasury Yield',
-        '^VIX':    'VIX Volatility Index',
-        'DX-Y.NYB':'US Dollar Index (DXY)',
-        'GC=F':    'Gold Futures',
-        'CL=F':    'Crude Oil (WTI)',
-        'BTC-USD': 'Bitcoin',
-    }
-
-    # Fallback tickers: if the primary symbol fails, try alternatives
-    fallbacks = {
-        'DX-Y.NYB': ['DX-Y.NYB', 'DX=F', 'UUP'],
-    }
-
-    def _fetch_yahoo_symbol(sym):
-        """Fetch a single Yahoo symbol, return (price, prev_close) or None."""
-        resp = safe_get(
-            f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(sym)}"
-            f"?range=5d&interval=1d",
-            headers={"User-Agent": HEADERS["User-Agent"]}
-        )
-        if not resp:
-            return None
-        data = resp.json()
-        result = data.get('chart', {}).get('result', [{}])[0]
-        meta = result.get('meta', {})
-        price = meta.get('regularMarketPrice')
-        prev  = meta.get('chartPreviousClose') or meta.get('previousClose')
-        if price:
-            return price, prev
-        return None
-
-    for symbol, name in symbols.items():
-        try:
-            tickers = fallbacks.get(symbol, [symbol])
-            hit = None
-            resolved_sym = symbol
-            for ticker in tickers:
-                hit = _fetch_yahoo_symbol(ticker)
-                if hit:
-                    resolved_sym = ticker
-                    break
-                log.warning(f"  {name}: ticker {ticker} returned no data, trying next…")
-
-            if not hit:
-                log.warning(f"  {name}: all tickers failed ({', '.join(tickers)})")
-                continue
-
-            price, prev = hit
-            if resolved_sym != symbol:
-                log.info(f"  {name}: resolved via fallback ticker {resolved_sym}")
-            change = ((price - prev) / prev * 100) if prev else 0
-            market_data.append({
-                'symbol': symbol,
-                'name':   name,
-                'price':  round(price, 2),
-                'change': round(change, 2),
-            })
-            log.info(f"  {name:<30} {price:>12,.2f}  ({change:+.2f}%)")
-        except Exception as e:
-            log.warning(f"  {symbol} parse error: {e}")
-
-    return market_data
-
-
-# ═══════════════════════════════════════════════════════════════
-# 12. OECD — Composite Leading Indicators & Forecasts
-# ═══════════════════════════════════════════════════════════════
-def scrape_oecd():
-    """Fetch OECD Composite Leading Indicator for the US."""
-    log.info("── OECD ─────────────────────────────────────────")
-    results = []
-
-    resp = safe_get(
-        "https://stats.oecd.org/sdmx-json/data/DP_LIVE/.CLI.../OECD"
-        "?contentType=csv&detail=code&separator=comma&csv-lang=en"
-        "&startPeriod=" + str(TODAY.year - 1),
-        timeout=30
-    )
-    if resp and resp.status_code == 200:
-        lines = resp.text.strip().split('\n')
-        us_lines = [l for l in lines if ',USA,' in l or ',US,' in l]
-        if us_lines:
-            latest = us_lines[-1]
-            log.info(f"  OECD CLI (US): {latest[:120]}")
-    else:
-        log.info("  OECD data: using FRED proxy (USALOLITONOSTSAM)")
-
-    # Fallback: get CLI via FRED
-    resp = safe_get(
-        f"https://api.stlouisfed.org/fred/series/observations"
-        f"?series_id=USALOLITONOSTSAM&api_key={FRED_API_KEY}"
-        f"&file_type=json&sort_order=desc&limit=3"
-    )
-    if resp:
-        try:
-            data = resp.json()
-            obs = data.get('observations', [])
-            if obs:
-                latest = obs[0]
-                log.info(f"  OECD CLI via FRED: {latest.get('value')} ({latest.get('date')})")
-        except Exception as e:
-            log.warning(f"  OECD FRED parse error: {e}")
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 13. World Bank — Global Macro Indicators
-# ═══════════════════════════════════════════════════════════════
-def scrape_worldbank():
-    """Fetch key World Bank indicators for the US."""
-    log.info("── World Bank ───────────────────────────────────")
-
-    indicators = {
-        'NY.GDP.MKTP.CD':     'GDP (current US$)',
-        'NY.GDP.MKTP.KD.ZG':  'GDP Growth (%)',
-        'FP.CPI.TOTL.ZG':     'Inflation (CPI %)',
-        'SL.UEM.TOTL.ZS':     'Unemployment (%)',
-        'NE.TRD.GNFS.ZS':     'Trade (% of GDP)',
-        'BN.CAB.XOKA.GD.ZS':  'Current Account (% of GDP)',
-        'GC.DOD.TOTL.GD.ZS':  'Govt Debt (% of GDP)',
-    }
-
-    for ind_id, name in indicators.items():
-        resp = safe_get(
-            f"https://api.worldbank.org/v2/country/US/indicator/{ind_id}"
-            f"?format=json&per_page=3&date={TODAY.year-2}:{TODAY.year}",
-            timeout=15
+            headers={
+                "Referer": "https://www.marketwatch.com/",
+                "User-Agent": HEADERS["User-Agent"],
+            }
         )
         if not resp:
             continue
 
         try:
-            data = resp.json()
-            if len(data) > 1 and data[1]:
-                for entry in data[1]:
-                    val = entry.get('value')
-                    if val is not None:
-                        log.info(f"  {name:<35} {val:>12,.2f}  ({entry.get('date')})")
-                        break
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(resp.text, 'html.parser')
+
+            for row in soup.find_all('tr'):
+                cells = row.find_all('td')
+                if len(cells) < 3:
+                    continue
+
+                text = row.get_text(' ', strip=True)
+                sid = match_event_name(text)
+                if not sid or sid not in needs:
+                    continue
+
+                # Look for numeric values in cells
+                for cell in cells:
+                    cell_text = cell.get_text(strip=True).replace(',', '')
+                    m = re.search(r'(-?\d+\.?\d*)', cell_text)
+                    if m:
+                        classes = cell.get('class', [])
+                        if any('consensus' in c or 'forecast' in c or 'estimate' in c for c in classes):
+                            estimate = float(m.group(1))
+                            for rec in records.values():
+                                if rec['series_id'] == sid and rec['estimate'] is None:
+                                    rec['estimate'] = estimate
+                                    found += 1
+                            needs.discard(sid)
+
         except Exception as e:
-            log.warning(f"  {ind_id} parse error: {e}")
+            log.warning(f"  MarketWatch parse error: {e}")
 
-
-# ═══════════════════════════════════════════════════════════════
-# 14. IMF — World Economic Outlook Data
-# ═══════════════════════════════════════════════════════════════
-def scrape_imf():
-    """Fetch IMF WEO projections for the US."""
-    log.info("── IMF ──────────────────────────────────────────")
-
-    # IMF WEO API
-    resp = safe_get(
-        "https://www.imf.org/external/datamapper/api/v1/NGDP_RPCH/USA",
-        timeout=20
-    )
-    if resp:
-        try:
-            data = resp.json()
-            values = data.get('values', {}).get('NGDP_RPCH', {}).get('USA', {})
-            recent = {k: v for k, v in values.items()
-                      if int(k) >= TODAY.year - 1}
-            for yr in sorted(recent.keys()):
-                log.info(f"  US GDP Growth forecast ({yr}): {recent[yr]}%")
-        except Exception as e:
-            log.warning(f"  IMF parse error: {e}")
-
-
-# ═══════════════════════════════════════════════════════════════
-# 15. ECB — Euro-area Rates (for global context)
-# ═══════════════════════════════════════════════════════════════
-def scrape_ecb():
-    """Fetch ECB key interest rates."""
-    log.info("── ECB ──────────────────────────────────────────")
-
-    resp = safe_get(
-        "https://data.ecb.europa.eu/data-detail/FM.D.U2.EUR.4F.KR.MRR_FR.LEV",
-        timeout=15
-    )
-    if resp:
-        # ECB page — extract latest rate from structured data
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        for tag in soup.find_all(['span', 'td', 'div']):
-            text = tag.get_text(strip=True)
-            if re.match(r'^\d+\.\d+$', text) and float(text) < 10:
-                log.info(f"  ECB Main Refinancing Rate: {text}%")
-                break
-
-    # ECB via FRED
-    resp = safe_get(
-        f"https://api.stlouisfed.org/fred/series/observations"
-        f"?series_id=ECBMRRFR&api_key={FRED_API_KEY}"
-        f"&file_type=json&sort_order=desc&limit=1"
-    )
-    if resp:
-        try:
-            data = resp.json()
-            obs = data.get('observations', [])
-            if obs:
-                log.info(f"  ECB rate via FRED: {obs[0].get('value')}% ({obs[0].get('date')})")
-        except Exception:
-            pass
-
-
-# ═══════════════════════════════════════════════════════════════
-# 16. Eurostat — Euro-area Macro (for global context)
-# ═══════════════════════════════════════════════════════════════
-def scrape_eurostat():
-    """Fetch Eurostat headline indicators via their JSON API."""
-    log.info("── Eurostat ─────────────────────────────────────")
-
-    datasets = {
-        'prc_hicp_manr': 'Euro-area HICP Inflation',
-        'namq_10_gdp':   'Euro-area GDP',
-        'une_rt_m':      'Euro-area Unemployment',
-    }
-
-    for ds_id, name in datasets.items():
-        resp = safe_get(
-            f"https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/{ds_id}"
-            f"?format=JSON&lang=en&geo=EA&sinceTimePeriod={TODAY.year - 1}M01",
-            timeout=20
-        )
-        if resp:
-            try:
-                data = resp.json()
-                values = data.get('value', {})
-                if values:
-                    # Get last non-null value
-                    latest_key = max(values.keys(), key=int)
-                    log.info(f"  {name}: {values[latest_key]}")
-            except Exception as e:
-                log.warning(f"  {ds_id}: {e}")
-
-
-# ═══════════════════════════════════════════════════════════════
-# 17. ISM — Manufacturing & Services PMI (direct)
-# ═══════════════════════════════════════════════════════════════
-def scrape_ism():
-    """Attempt to scrape ISM release dates from ismworld.org."""
-    log.info("── ISM ──────────────────────────────────────────")
-    results = []
-
-    resp = safe_get("https://www.ismworld.org/supply-management-news-and-reports/reports/ism-report-on-business/")
-    if resp:
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        text = soup.get_text(' ', strip=True)
-
-        # Try to find next release date
-        date_matches = re.findall(
-            r'((?:January|February|March|April|May|June|July|August|September|'
-            r'October|November|December)\s+\d{1,2},?\s*\d{4})',
-            text, re.IGNORECASE
-        )
-        for dm in date_matches:
-            rd = parse_date_flexible(dm)
-            if rd and in_window(rd):
-                if not any(r['series_id'] == 'MANEMP' for r in results):
-                    results.append({
-                        'series_id':    'MANEMP',
-                        'release_name': 'ISM Manufacturing PMI',
-                        'release_date': rd,
-                        'estimate':     None,
-                        'actual':       None,
-                        'unit':         '',
-                        'source':       'ISM',
-                        'impact':       'medium',
-                    })
-                    log.info(f"  ISM Manufacturing PMI → {rd}")
-                    break
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 18. NAR — National Association of Realtors
-# ═══════════════════════════════════════════════════════════════
-def scrape_nar():
-    """Scrape NAR for Existing Home Sales and Pending Home Sales dates."""
-    log.info("── NAR (Realtors) ─────────────────────────────")
-    results = []
-
-    resp = safe_get("https://www.nar.realtor/research-and-statistics")
-    if resp:
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        text = soup.get_text(' ', strip=True)
-
-        for keyword, sid, name in [
-            ('existing home sales',  'EXHOSLUSM495S', 'Existing Home Sales'),
-            ('pending home sales',   'PHSI',          'Pending Home Sales'),
-        ]:
-            idx = text.lower().find(keyword)
-            if idx < 0:
-                continue
-            context = text[idx:idx+200]
-            date_match = re.search(
-                r'((?:January|February|March|April|May|June|July|August|September|'
-                r'October|November|December)\s+\d{1,2},?\s*\d{4})',
-                context, re.IGNORECASE
-            )
-            if date_match:
-                rd = parse_date_flexible(date_match.group(1))
-                if rd and in_window(rd):
-                    results.append({
-                        'series_id':    sid,
-                        'release_name': name,
-                        'release_date': rd,
-                        'estimate':     None,
-                        'actual':       None,
-                        'unit':         '%',
-                        'source':       'NAR',
-                        'impact':       'low',
-                    })
-                    log.info(f"  {sid:<22} {name} → {rd}")
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 19. Dept of Labor — Weekly Claims
-# ═══════════════════════════════════════════════════════════════
-def scrape_dol():
-    """Scrape Department of Labor for jobless claims schedule."""
-    log.info("── Dept of Labor ──────────────────────────────")
-    results = []
-
-    resp = safe_get("https://www.dol.gov/ui/data.pdf", timeout=10)
-    # DOL doesn't have a clean HTML schedule — rely on FRED API for claims dates
-    # But we can still try the news page
-    resp = safe_get("https://www.dol.gov/newsroom/economicdata")
-    if resp:
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        for item in soup.find_all(['li', 'div', 'tr']):
-            text = item.get_text(' ', strip=True)
-            if 'claims' not in text.lower():
-                continue
-            date_match = re.search(
-                r'((?:January|February|March|April|May|June|July|August|September|'
-                r'October|November|December)\s+\d{1,2},?\s*\d{4})',
-                text, re.IGNORECASE
-            )
-            if date_match:
-                rd = parse_date_flexible(date_match.group(1))
-                if rd and in_window(rd):
-                    if not any(r['series_id'] == 'ICSA' for r in results):
-                        results.append({
-                            'series_id':    'ICSA',
-                            'release_name': 'Initial Jobless Claims',
-                            'release_date': rd,
-                            'estimate':     None,
-                            'actual':       None,
-                            'unit':         'K',
-                            'source':       'Dept of Labor',
-                            'impact':       'medium',
-                        })
-                        log.info(f"  ICSA: Initial Jobless Claims → {rd}")
-                        break
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# 20. Conference Board — LEI & Consumer Confidence
-# ═══════════════════════════════════════════════════════════════
-def scrape_conference_board():
-    """Attempt to scrape Conference Board release schedule."""
-    log.info("── Conference Board ─────────────────────────────")
-    results = []
-
-    resp = safe_get("https://www.conference-board.org/us/")
-    if resp:
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        text = soup.get_text(' ', strip=True)
-
-        for keyword, sid, name in [
-            ('consumer confidence', 'CSCICP03USM665S', 'Consumer Confidence'),
-            ('leading economic',    'USSLIND',         'Leading Economic Indicators'),
-        ]:
-            idx = text.lower().find(keyword)
-            if idx < 0:
-                continue
-            context = text[max(0, idx-50):idx+200]
-            date_match = re.search(
-                r'((?:January|February|March|April|May|June|July|August|September|'
-                r'October|November|December)\s+\d{1,2},?\s*\d{4})',
-                context, re.IGNORECASE
-            )
-            if date_match:
-                rd = parse_date_flexible(date_match.group(1))
-                if rd and in_window(rd):
-                    results.append({
-                        'series_id':    sid,
-                        'release_name': name,
-                        'release_date': rd,
-                        'estimate':     None,
-                        'actual':       None,
-                        'unit':         '',
-                        'source':       'Conference Board',
-                        'impact':       'medium',
-                    })
-                    log.info(f"  {sid:<22} {name} → {rd}")
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════
-# MERGE & DEDUPLICATE
-# ═══════════════════════════════════════════════════════════════
-def merge_results(*source_lists):
-    """
-    Merge records from multiple sources, keyed by (series_id, release_date).
-    A single series can have multiple upcoming dates (e.g. weekly claims).
-    Priority:
-    1. Prefer records with consensus estimates over those without
-    2. Prefer government sources (BLS/BEA/Census) for metadata
-    3. Prefer market sources (MarketWatch/Investing) for estimates
-    """
-    merged = {}
-    PRIORITY_SOURCES = ['BLS', 'BEA', 'Census', 'FRED', 'Federal Reserve', 'Dept of Labor']
-
-    for source in source_lists:
-        for item in source:
-            key = (item['series_id'], item.get('release_date', ''))
-            if key not in merged:
-                merged[key] = item.copy()
-            else:
-                existing = merged[key]
-                # If new item has an estimate and existing doesn't, take the estimate
-                if item.get('estimate') is not None and existing.get('estimate') is None:
-                    existing['estimate'] = item['estimate']
-                # If new item has an actual and existing doesn't, take the actual
-                if item.get('actual') is not None and existing.get('actual') is None:
-                    existing['actual'] = item['actual']
-                # If new item has a prior and existing doesn't, take the prior
-                if item.get('prior') is not None and existing.get('prior') is None:
-                    existing['prior'] = item['prior']
-                # Prefer government source metadata
-                if (item.get('source') in PRIORITY_SOURCES and
-                        existing.get('source') not in PRIORITY_SOURCES):
-                    existing['source'] = item['source']
-                    existing['impact'] = item.get('impact', existing.get('impact'))
-
-    return list(merged.values())
-
-
-# ═══════════════════════════════════════════════════════════════
-# MANUAL ESTIMATES
-# ═══════════════════════════════════════════════════════════════
-# Fill these in each week from Econoday or Bloomberg or any other source.
-# Format: 'FRED_SERIES_ID': estimate_as_float
-MANUAL_ESTIMATES = {
-    # 'CPIAUCSL':  2.9,       # CPI YoY %
-    # 'CPILFESL':  3.2,       # Core CPI YoY %
-    # 'PAYEMS':    185,        # NFP change in thousands
-    # 'UNRATE':    4.1,        # Unemployment rate %
-    # 'GDP':       2.3,        # GDP growth % QoQ annualized
-    # 'PCEPI':     2.6,        # PCE price index YoY %
-    # 'PCEPILFE':  2.7,        # Core PCE YoY %
-    # 'PPIACO':    3.1,        # PPI YoY %
-    # 'RSAFS':     0.4,        # Retail Sales MoM %
-    # 'ICSA':      220,        # Initial Claims thousands
-    # 'JTSJOL':    8800,       # JOLTS openings thousands
-    # 'HOUST':     1400,       # Housing Starts thousands annualized
-    # 'PERMIT':    1450,       # Building Permits thousands annualized
-    # 'HSN1F':     680,        # New Home Sales thousands annualized
-    # 'INDPRO':    0.3,        # Industrial Production MoM %
-    # 'UMCSENT':   67.5,       # Michigan Consumer Sentiment
-    # 'DGORDER':   1.2,        # Durable Goods MoM %
-    # 'MANEMP':    50.5,       # ISM Manufacturing PMI
-    # 'NMFCI':     52.0,       # ISM Services PMI
-    # 'BOPGSTB':  -68.5,       # Trade Balance billions
-}
-
-
-def apply_manual_estimates(records):
-    """Apply manually entered consensus estimates to records."""
-    applied = 0
-    for r in records:
-        if r['series_id'] in MANUAL_ESTIMATES:
-            r['estimate'] = MANUAL_ESTIMATES[r['series_id']]
-            applied += 1
-            log.info(f"  Manual estimate: {r['series_id']} = {r['estimate']}")
-    if applied:
-        log.info(f"  Applied {applied} manual estimates")
+    log.info(f"  Backup estimates found: {found}")
     return records
 
 
 # ═══════════════════════════════════════════════════════════════
-# PRIOR VALUES (from FRED observations)
+# 5. FOMC DATES — Hardcoded (announced a year in advance)
 # ═══════════════════════════════════════════════════════════════
-# Series where FRED stores raw levels but the calendar shows period-over-period % change.
-# For these, we compute: (value / prev_value - 1) * 100, rounded to 1 decimal.
-_PCT_CHANGE_SERIES = {
-    "CPIAUCSL", "CPILFESL", "PPIACO", "PCEPI", "PCEPILFE",
-    "RSAFS", "INDPRO",
-}
-
-# Series where FRED stores raw levels and the calendar shows month-over-month change in thousands.
-_DIFF_SERIES = {
-    "PAYEMS",
-}
-
-# Series that are not available as standard FRED observation endpoints
-# (e.g. composite/text releases like Beige Book, FOMC minutes)
-_SKIP_SERIES = {"BEIGE_BOOK", "FOMC_MINUTES"}
+FOMC_DATES = [
+    "2025-01-29", "2025-03-19", "2025-05-07", "2025-06-18",
+    "2025-07-30", "2025-09-17", "2025-10-29", "2025-12-10",
+    "2026-01-28", "2026-03-18", "2026-04-29", "2026-06-17",
+    "2026-07-29", "2026-09-16", "2026-10-28", "2026-12-09",
+]
 
 
-def fetch_prior_values(records):
-    """
-    Fetch the most recent released observation from FRED for each series
-    and attach it as the 'prior' field on each record.
-    """
-    log.info("── Prior Values (FRED) ──────────────────────────")
-
-    # Collect unique series IDs that need priors
-    series_ids = sorted({r['series_id'] for r in records} - _SKIP_SERIES)
-    if not series_ids:
-        log.info("  No series to fetch priors for")
-        return records
-
-    prior_map = {}  # series_id → prior value
-
-    for sid in series_ids:
-        # Fetch the two most recent observations so we can compute % change if needed
-        limit = 2 if sid in _PCT_CHANGE_SERIES or sid in _DIFF_SERIES else 1
-        url = (
-            f"https://api.stlouisfed.org/fred/series/observations"
-            f"?series_id={sid}&api_key={FRED_API_KEY}"
-            f"&file_type=json&sort_order=desc&limit={limit}"
-        )
-        resp = safe_get(url, retries=2, timeout=10)
-        if not resp:
+def add_fomc_dates(records):
+    """Add FOMC meeting dates to the record set."""
+    log.info("── FOMC Dates ─────────────────────────────────────")
+    added = 0
+    for d in FOMC_DATES:
+        if not in_window(d):
             continue
-        try:
-            obs = resp.json().get('observations', [])
-            if not obs:
-                continue
-            raw = obs[0].get('value', '').strip()
-            if raw in ('', '.'):
-                continue
-            val = float(raw)
-
-            if sid in _PCT_CHANGE_SERIES and len(obs) >= 2:
-                prev_raw = obs[1].get('value', '').strip()
-                if prev_raw not in ('', '.'):
-                    prev_val = float(prev_raw)
-                    if prev_val != 0:
-                        prior_map[sid] = round((val / prev_val - 1) * 100, 1)
-            elif sid in _DIFF_SERIES and len(obs) >= 2:
-                prev_raw = obs[1].get('value', '').strip()
-                if prev_raw not in ('', '.'):
-                    prior_map[sid] = round(val - float(prev_raw), 1)
-            else:
-                prior_map[sid] = val
-        except (ValueError, KeyError, json.JSONDecodeError) as e:
-            log.warning(f"  Prior parse error for {sid}: {e}")
-
-    # Attach priors to records
-    applied = 0
-    for r in records:
-        sid = r['series_id']
-        if sid in prior_map:
-            r['prior'] = prior_map[sid]
-            applied += 1
-
-    log.info(f"  Fetched priors for {len(prior_map)}/{len(series_ids)} series, applied to {applied} records")
-    for sid, val in sorted(prior_map.items()):
-        log.info(f"    {sid:<22} prior={val}")
-
-    return records
-
-
-# ═══════════════════════════════════════════════════════════════
-# ACTUAL VALUES (from FRED observations)
-# ═══════════════════════════════════════════════════════════════
-def fetch_actual_values(records):
-    """
-    For events whose release_date has passed (or is today), fetch the
-    corresponding FRED observation and populate the 'actual' field.
-    Uses the same pct-change / diff transforms as fetch_prior_values()
-    so that units are consistent with estimates.
-    """
-    log.info("── Actual Values (FRED) ─────────────────────────")
-
-    # Only fill actuals for past/today events that are still missing
-    candidates = [
-        r for r in records
-        if r.get('release_date', '') <= TODAY.isoformat()
-        and r.get('actual') is None
-        and r['series_id'] not in _SKIP_SERIES
-    ]
-
-    if not candidates:
-        log.info("  No past events need actuals")
-        return records
-
-    # Deduplicate by series_id — each series appears at most once per fetch
-    seen_sids = set()
-    unique = []
-    for r in candidates:
-        if r['series_id'] not in seen_sids:
-            seen_sids.add(r['series_id'])
-            unique.append(r)
-
-    actual_map = {}  # series_id → actual value
-
-    for r in unique:
-        sid = r['series_id']
-        # Fetch the two most recent observations (need two for pct-change / diff)
-        limit = 3 if sid in _PCT_CHANGE_SERIES or sid in _DIFF_SERIES else 2
-        url = (
-            f"https://api.stlouisfed.org/fred/series/observations"
-            f"?series_id={sid}&api_key={FRED_API_KEY}"
-            f"&file_type=json&sort_order=desc&limit={limit}"
-        )
-        resp = safe_get(url, retries=2, timeout=10)
-        if not resp:
-            continue
-        try:
-            obs = resp.json().get('observations', [])
-            if not obs:
-                continue
-
-            # The most recent observation is the "actual" for the latest release.
-            raw = obs[0].get('value', '').strip()
-            if raw in ('', '.'):
-                continue
-            val = float(raw)
-
-            if sid in _PCT_CHANGE_SERIES and len(obs) >= 2:
-                prev_raw = obs[1].get('value', '').strip()
-                if prev_raw not in ('', '.'):
-                    prev_val = float(prev_raw)
-                    if prev_val != 0:
-                        actual_map[sid] = round((val / prev_val - 1) * 100, 1)
-            elif sid in _DIFF_SERIES and len(obs) >= 2:
-                prev_raw = obs[1].get('value', '').strip()
-                if prev_raw not in ('', '.'):
-                    actual_map[sid] = round(val - float(prev_raw), 1)
-            else:
-                actual_map[sid] = val
-        except (ValueError, KeyError, json.JSONDecodeError) as e:
-            log.warning(f"  Actual parse error for {sid}: {e}")
-
-    # Apply actuals to all matching records
-    applied = 0
-    for r in records:
-        sid = r['series_id']
-        if r.get('actual') is None and sid in actual_map:
-            r['actual'] = actual_map[sid]
-            applied += 1
-
-    log.info(f"  Fetched actuals for {len(actual_map)}/{len(unique)} series, applied to {applied} records")
-    for sid, val in sorted(actual_map.items()):
-        log.info(f"    {sid:<22} actual={val}")
-
+        key = ("FEDFUNDS", d)
+        if key not in records:
+            records[key] = {
+                'series_id':    'FEDFUNDS',
+                'release_name': 'Fed Interest Rate Decision',
+                'release_date': d,
+                'estimate':     None,
+                'actual':       None,
+                'prior':        None,
+                'unit':         '%',
+                'source':       'Federal Reserve',
+                'impact':       'high',
+                'frequency':    'Fed',
+            }
+            added += 1
+    log.info(f"  Added {added} FOMC dates")
     return records
 
 
 # ═══════════════════════════════════════════════════════════════
 # SUPABASE UPSERT
 # ═══════════════════════════════════════════════════════════════
-def _fetch_existing_consensus(series_dates, headers):
-    """Fetch existing consensus rows so we don't overwrite actual/prior with null."""
-    existing = {}  # (series_id, release_date) → row
-    if not series_dates:
+def _fetch_existing(sids_dates, headers):
+    """Fetch existing rows to avoid overwriting good data with nulls."""
+    existing = {}
+    if not sids_dates:
         return existing
 
-    # Build filter: series_id in (...) and release_date in (...)
-    sids = sorted({sd[0] for sd in series_dates})
-    dates = sorted({sd[1] for sd in series_dates})
+    sids = sorted({sd[0] for sd in sids_dates})
+    dates = sorted({sd[1] for sd in sids_dates})
     params = (
         f"?select=series_id,release_date,estimate,actual,prior"
         f"&series_id=in.({','.join(sids)})"
@@ -1635,31 +526,26 @@ def _fetch_existing_consensus(series_dates, headers):
     try:
         res = requests.get(
             f"{SUPABASE_URL}/rest/v1/consensus{params}",
-            headers={
-                "apikey": headers["apikey"],
-                "Authorization": headers["Authorization"],
-                "Accept": "application/json",
-            },
+            headers={"apikey": headers["apikey"], "Authorization": headers["Authorization"],
+                     "Accept": "application/json"},
             timeout=10,
         )
         if res.status_code == 200:
             for row in res.json():
-                key = (row['series_id'], row['release_date'])
-                existing[key] = row
+                existing[(row['series_id'], row['release_date'])] = row
     except requests.RequestException:
         pass
     return existing
 
 
 def upsert_to_supabase(records):
-    """Upsert economic calendar records to Supabase."""
+    """Push all records to Supabase, preserving existing non-null values."""
     log.info("── Supabase Upsert ──────────────────────────────")
     if not records:
-        log.info("  No records to upsert")
+        log.info("  No records")
         return
-
     if not SUPABASE_KEY:
-        log.warning("  SUPABASE_KEY not set — skipping upsert")
+        log.warning("  SUPABASE_KEY not set — skipping")
         return
 
     headers = {
@@ -1669,41 +555,27 @@ def upsert_to_supabase(records):
         "Prefer": "resolution=merge-duplicates",
     }
 
-    # Fetch existing rows so we preserve actual/prior values that were
-    # previously populated — the scraper often returns null for these
-    # fields when the data hasn't been released yet or the source is down.
-    series_dates = [(r['series_id'], r['release_date']) for r in records]
-    existing = _fetch_existing_consensus(series_dates, headers)
+    # Fetch existing to preserve non-null values
+    existing = _fetch_existing(list(records.keys()), headers)
 
     rows = []
-    for r in records:
-        key = (r['series_id'], r['release_date'])
+    for key, rec in records.items():
         prev = existing.get(key, {})
-
-        # Keep existing actual/prior/estimate if the new scrape has null
-        actual = r.get('actual')
-        if actual is None:
-            actual = prev.get('actual')
-        prior = r.get('prior')
-        if prior is None:
-            prior = prev.get('prior')
-        estimate = r.get('estimate')
-        if estimate is None:
-            estimate = prev.get('estimate')
-
         rows.append({
-            "series_id":    r['series_id'],
-            "release_name": r.get('release_name', ''),
-            "release_date": r['release_date'],
-            "estimate":     estimate,
-            "actual":       actual,
-            "prior":        prior,
-            "unit":         r.get('unit', ''),
-            "source":       r.get('source', ''),
-            "impact":       r.get('impact', 'low'),
+            "series_id":    rec['series_id'],
+            "release_name": rec['release_name'],
+            "release_date": rec['release_date'],
+            "estimate":     rec.get('estimate') or prev.get('estimate'),
+            "actual":       rec.get('actual') or prev.get('actual'),
+            "prior":        rec.get('prior') or prev.get('prior'),
+            "unit":         rec.get('unit', ''),
+            "source":       rec.get('source', ''),
+            "impact":       rec.get('impact', 'low'),
+            "frequency":    rec.get('frequency', 'MoM'),
             "updated_at":   datetime.utcnow().isoformat(),
         })
 
+    # Batch upsert (Supabase handles up to 1000 rows)
     try:
         res = requests.post(
             f"{SUPABASE_URL}/rest/v1/consensus",
@@ -1712,75 +584,24 @@ def upsert_to_supabase(records):
             timeout=15,
         )
         if res.status_code in (200, 201):
-            log.info(f"  Upserted {len(rows)} records to consensus table")
-            for r in rows:
-                est = r['estimate'] if r['estimate'] is not None else '—'
-                act = r['actual'] if r['actual'] is not None else '—'
-                log.info(f"    {r['series_id']:<22} date={r['release_date']}  est={est}  act={act}")
+            log.info(f"  Upserted {len(rows)} records")
         else:
-            log.error(f"  Supabase error {res.status_code}: {res.text[:300]}")
+            log.error(f"  Supabase {res.status_code}: {res.text[:300]}")
     except requests.RequestException as e:
-        log.error(f"  Supabase request failed: {e}")
+        log.error(f"  Supabase error: {e}")
 
-    # Also upsert to scrape_log table
+    # Log to scrape_log
     log_rows = [{
-        "series_id":    r['series_id'],
-        "release_date": r['release_date'],
-        "estimate":     r.get('estimate'),
-        "actual":       r.get('actual'),
-        "source":       r.get('source', ''),
-        "scraped_at":   datetime.utcnow().isoformat(),
-    } for r in records]
+        "series_id": r["series_id"], "release_date": r["release_date"],
+        "estimate": r.get("estimate"), "actual": r.get("actual"),
+        "source": r.get("source", ""), "scraped_at": datetime.utcnow().isoformat(),
+    } for r in rows]
 
     try:
-        res = requests.post(
+        requests.post(
             f"{SUPABASE_URL}/rest/v1/scrape_log",
-            json=log_rows,
-            headers=headers,
-            timeout=15,
+            json=log_rows, headers=headers, timeout=15,
         )
-        if res.status_code in (200, 201):
-            log.info(f"  Logged {len(log_rows)} entries to scrape_log")
-        else:
-            log.warning(f"  scrape_log upsert: {res.status_code} (table may not exist yet)")
-    except requests.RequestException:
-        pass
-
-    # Upsert market data if available
-    return
-
-
-def upsert_market_data(market_data):
-    """Upsert market snapshot data to Supabase."""
-    if not market_data or not SUPABASE_KEY:
-        return
-
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates",
-    }
-
-    rows = [{
-        "symbol":     m['symbol'],
-        "name":       m['name'],
-        "price":      m['price'],
-        "change_pct": m['change'],
-        "snapshot_at": datetime.utcnow().isoformat(),
-    } for m in market_data]
-
-    try:
-        res = requests.post(
-            f"{SUPABASE_URL}/rest/v1/market_snapshots",
-            json=rows,
-            headers=headers,
-            timeout=15,
-        )
-        if res.status_code in (200, 201):
-            log.info(f"  Upserted {len(rows)} market snapshots")
-        else:
-            log.warning(f"  market_snapshots upsert: {res.status_code} (table may not exist yet)")
     except requests.RequestException:
         pass
 
@@ -1788,40 +609,30 @@ def upsert_market_data(market_data):
 # ═══════════════════════════════════════════════════════════════
 # SUMMARY
 # ═══════════════════════════════════════════════════════════════
-def print_summary(records, market_data=None):
-    """Print a formatted summary of all scraped data."""
-    log.info("── Summary ───────────────────────────────────────")
-    if not records:
-        log.info("  No records found")
+def print_summary(records):
+    """Print formatted summary of all data."""
+    recs = sorted(records.values(), key=lambda x: x.get('release_date', ''))
+    if not recs:
+        log.info("No records found")
         return
 
-    log.info(f"  {'Series':<22} {'Release':<30} {'Date':<14} {'Est':<10} {'Source':<18} Impact")
-    log.info(f"  {'─'*110}")
+    log.info(f"\n  {'Series':<22} {'Release':<35} {'Date':<12} {'Prior':<10} {'Est':<10} {'Actual':<10} Impact")
+    log.info(f"  {'─'*115}")
 
-    for r in sorted(records, key=lambda x: x.get('release_date', '')):
-        est = str(r['estimate']) if r.get('estimate') is not None else '—'
-        impact = r.get('impact', '')
+    for r in recs:
+        pri = str(r.get('prior', '')) if r.get('prior') is not None else '–'
+        est = str(r.get('estimate', '')) if r.get('estimate') is not None else '–'
+        act = str(r.get('actual', '')) if r.get('actual') is not None else '–'
         log.info(
-            f"  {r['series_id']:<22} {r.get('release_name','')[:30]:<30} "
-            f"{r.get('release_date',''):<14} {est:<10} {r.get('source',''):<18} {impact}"
+            f"  {r['series_id']:<22} {r['release_name'][:35]:<35} "
+            f"{r['release_date']:<12} {pri:<10} {est:<10} {act:<10} {r.get('impact','')}"
         )
 
-    # Stats
-    with_est = sum(1 for r in records if r.get('estimate') is not None)
-    sources  = set(r.get('source', '') for r in records)
-    log.info(f"\n  Total: {len(records)} indicators from {len(sources)} sources")
-    log.info(f"  With consensus estimate: {with_est}/{len(records)}")
-    log.info(f"  Sources: {', '.join(sorted(sources))}")
-
-    if with_est < len(records):
-        log.info(f"\n  To add missing estimates, edit MANUAL_ESTIMATES dict or update Supabase directly.")
-        log.info(f"  Consensus sources: https://us.econoday.com/byweek.asp?cust=us")
-        log.info(f"                     https://www.marketwatch.com/economy-politics/calendar")
-
-    if market_data:
-        log.info(f"\n  ── Market Snapshot ──")
-        for m in market_data:
-            log.info(f"    {m['name']:<30} {m['price']:>12,.2f}  ({m['change']:+.2f}%)")
+    with_est = sum(1 for r in recs if r.get('estimate') is not None)
+    with_act = sum(1 for r in recs if r.get('actual') is not None)
+    with_pri = sum(1 for r in recs if r.get('prior') is not None)
+    log.info(f"\n  Total: {len(recs)} records")
+    log.info(f"  Priors: {with_pri} | Estimates: {with_est} | Actuals: {with_act}")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1829,67 +640,27 @@ def print_summary(records, market_data=None):
 # ═══════════════════════════════════════════════════════════════
 if __name__ == "__main__":
     log.info(f"{'='*60}")
-    log.info(f"  Economic Calendar Scraper — Comprehensive Edition")
-    log.info(f"  Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    log.info(f"  Window: {TODAY} → {CUTOFF} ({(CUTOFF - TODAY).days} days)")
+    log.info(f"  Economic Calendar Scraper v2")
+    log.info(f"  {datetime.now().strftime('%Y-%m-%d %H:%M')} | Window: {LOOKBACK} → {CUTOFF}")
     log.info(f"{'='*60}")
 
-    # ── Phase 1: Government sources (most reliable for dates) ──
-    fred    = scrape_fred_releases()
-    bls     = scrape_bls()
-    bea     = scrape_bea()
-    census  = scrape_census()
-    fed     = scrape_federal_reserve()
-    dol     = scrape_dol()
-    treasury = scrape_treasury()
+    # Phase 1: Get release dates from FRED (authoritative)
+    records = fetch_fred_dates()
 
-    # ── Phase 2: Industry sources ──
-    ism     = scrape_ism()
-    nar     = scrape_nar()
-    confb   = scrape_conference_board()
+    # Phase 2: Add FOMC dates
+    records = add_fomc_dates(records)
 
-    # ── Phase 3: Market calendars (best for consensus estimates) ──
-    mw      = scrape_marketwatch()
-    inv     = scrape_investing()
-    ff      = scrape_forexfactory()
-    te      = scrape_tradingeconomics()
+    # Phase 3: Fetch prior + actual values from FRED observations
+    records = fetch_fred_values(records)
 
-    # ── Phase 4: International / macro context ──
-    scrape_oecd()
-    scrape_worldbank()
-    scrape_imf()
-    scrape_ecb()
-    scrape_eurostat()
+    # Phase 4: Fetch consensus estimates (aggressive, multiple sources)
+    records = fetch_investing_estimates(records)
+    records = fetch_marketwatch_estimates(records)
 
-    # ── Phase 5: Market data snapshot ──
-    market_data = scrape_yahoo_markets()
+    # Summary
+    print_summary(records)
 
-    # ── Merge all sources ──
-    log.info("\n── Merging Sources ──────────────────────────────")
-    merged = merge_results(
-        fred, bls, bea, census, fed, dol, ism, nar, confb,
-        mw, inv, ff, te
-    )
-    log.info(f"  Merged to {len(merged)} unique indicators")
+    # Phase 5: Push to Supabase
+    upsert_to_supabase(records)
 
-    # ── Apply manual overrides ──
-    log.info("\n── Manual Estimates ─────────────────────────────")
-    if MANUAL_ESTIMATES:
-        merged = apply_manual_estimates(merged)
-    else:
-        log.info("  None set — edit MANUAL_ESTIMATES dict to add them")
-
-    # ── Fetch prior values from FRED ──
-    merged = fetch_prior_values(merged)
-
-    # ── Fetch actual values from FRED for past events ──
-    merged = fetch_actual_values(merged)
-
-    # ── Print results ──
-    print_summary(merged, market_data)
-
-    # ── Push to database ──
-    upsert_to_supabase(merged)
-    upsert_market_data(market_data)
-
-    log.info(f"\nDone. {len(merged)} indicators + {len(market_data)} market snapshots processed.")
+    log.info(f"\nDone. {len(records)} records processed.")

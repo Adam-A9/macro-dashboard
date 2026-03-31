@@ -243,36 +243,41 @@ ON CONFLICT (series_id) DO UPDATE SET
   impact         = EXCLUDED.impact,
   higher_is_good = EXCLUDED.higher_is_good;
 
--- ─── 11. SEED CONSENSUS TEST DATA ─────────────────────────────────────────
-INSERT INTO consensus (series_id, release_name, release_date, estimate, unit, source, impact) VALUES
-  ('CPIAUCSL',       'Consumer Price Index',       '2026-04-10', 2.9,   '%', 'BLS',           'high'),
-  ('CPILFESL',       'Core CPI',                   '2026-04-10', 3.2,   '%', 'BLS',           'high'),
-  ('PAYEMS',         'Nonfarm Payrolls',            '2026-04-03', 185,   'K', 'BLS',           'high'),
-  ('UNRATE',         'Unemployment Rate',           '2026-04-03', 4.1,   '%', 'BLS',           'high'),
-  ('GDP',            'GDP Advance Estimate',        '2026-04-29', 2.3,   '%', 'BEA',           'high'),
-  ('PCEPI',          'PCE Price Index',             '2026-03-28', 2.6,   '%', 'BEA',           'medium'),
-  ('PCEPILFE',       'Core PCE',                    '2026-03-28', 2.7,   '%', 'BEA',           'high'),
-  ('PPIACO',         'Producer Price Index',        '2026-04-11', 3.1,   '%', 'BLS',           'medium'),
-  ('RSAFS',          'Retail Sales',                '2026-04-15', 0.4,   '%', 'Census',        'high'),
-  ('ICSA',           'Initial Jobless Claims',      '2026-03-27', 220,   'K', 'Dept of Labor', 'medium'),
-  ('JTSJOL',         'JOLTS Job Openings',          '2026-04-01', 8800,  'K', 'BLS',           'medium'),
-  ('HOUST',          'Housing Starts',              '2026-04-16', 1400,  'K', 'Census',        'medium'),
-  ('PERMIT',         'Building Permits',            '2026-04-16', 1450,  'K', 'Census',        'medium'),
-  ('HSN1F',          'New Home Sales',              '2026-04-23', 680,   'K', 'Census',        'low'),
-  ('INDPRO',         'Industrial Production',       '2026-04-15', 0.3,   '%', 'Federal Reserve','low'),
-  ('UMCSENT',        'Consumer Sentiment',          '2026-04-11', 67.5,  '',  'Univ of Michigan','low'),
-  ('DGORDER',        'Durable Goods Orders',        '2026-04-24', 1.2,   '%', 'Census',        'medium'),
-  ('MANEMP',         'ISM Manufacturing PMI',       '2026-04-01', 50.5,  '',  'ISM',           'medium'),
-  ('NMFCI',          'ISM Services PMI',            '2026-04-03', 52.0,  '',  'ISM',           'medium'),
-  ('BOPGSTB',        'Trade Balance',               '2026-04-03', -68.5, 'B$','Census/BEA',    'medium'),
-  ('FEDFUNDS',       'Fed Funds Rate',              '2026-04-29', 4.50,  '%', 'Federal Reserve','high'),
-  ('ECIWAG',         'Employment Cost Index',       '2026-04-30', 1.0,   '%', 'BLS',           'medium'),
-  ('EXHOSLUSM495S',  'Existing Home Sales',         '2026-04-22', 4.10,  'M', 'NAR',           'low'),
-  ('PHSI',           'Pending Home Sales Index',    '2026-04-28', 1.5,   '%', 'NAR',           'low')
-ON CONFLICT (series_id) DO UPDATE SET
+-- ─── 11. SEED CONSENSUS DATA ──────────────────────────────────────────────
+-- These are placeholder estimates. The scraper overwrites them with real data.
+-- Past events (last ~5 days of March 2026) + upcoming April 2026 events.
+INSERT INTO consensus (series_id, release_name, release_date, estimate, unit, source, impact, frequency) VALUES
+  -- Past events (with actuals filled in as examples)
+  ('ICSA',           'Initial Jobless Claims',      '2026-03-19', 220,   'K', 'Dept of Labor', 'medium', 'WoW'),
+  ('PCEPI',          'PCE Price Index',             '2026-03-27', 2.6,   '%', 'BEA',           'medium', 'MoM'),
+  ('PCEPILFE',       'Core PCE',                    '2026-03-27', 2.7,   '%', 'BEA',           'high',   'MoM'),
+  ('ICSA',           'Initial Jobless Claims',      '2026-03-26', 218,   'K', 'Dept of Labor', 'medium', 'WoW'),
+  ('CSCICP03USM665S','Consumer Confidence',          '2026-03-24', 102.5, '',  'Conference Board','medium','MoM'),
+  -- Upcoming events
+  ('MANEMP',         'ISM Manufacturing PMI',       '2026-04-01', 50.5,  '',  'ISM',           'medium', 'MoM'),
+  ('JTSJOL',         'JOLTS Job Openings',          '2026-04-01', 8800,  'K', 'BLS',           'medium', 'MoM'),
+  ('PAYEMS',         'Nonfarm Payrolls',            '2026-04-03', 185,   'K', 'BLS',           'high',   'MoM'),
+  ('UNRATE',         'Unemployment Rate',           '2026-04-03', 4.1,   '%', 'BLS',           'high',   'MoM'),
+  ('NMFCI',          'ISM Services PMI',            '2026-04-03', 52.0,  '',  'ISM',           'medium', 'MoM'),
+  ('BOPGSTB',        'Trade Balance',               '2026-04-03', -68.5, 'B$','Census/BEA',    'medium', 'MoM'),
+  ('CPIAUCSL',       'Consumer Price Index (CPI)',  '2026-04-10', 2.9,   '%', 'BLS',           'high',   'MoM'),
+  ('PPIACO',         'Producer Price Index (PPI)',  '2026-04-11', 3.1,   '%', 'BLS',           'medium', 'MoM'),
+  ('UMCSENT',        'Consumer Sentiment',          '2026-04-11', 67.5,  '',  'Univ of Michigan','low',  'MoM'),
+  ('RSAFS',          'Retail Sales',                '2026-04-15', 0.4,   '%', 'Census',        'high',   'MoM'),
+  ('INDPRO',         'Industrial Production',       '2026-04-15', 0.3,   '%', 'Federal Reserve','low',   'MoM'),
+  ('HOUST',          'Housing Starts & Permits',    '2026-04-16', 1400,  'K', 'Census',        'medium', 'MoM'),
+  ('EXHOSLUSM495S',  'Existing Home Sales',         '2026-04-22', 4.10,  'M', 'NAR',           'low',   'MoM'),
+  ('HSN1F',          'New Home Sales',              '2026-04-23', 680,   'K', 'Census',        'low',    'MoM'),
+  ('DGORDER',        'Durable Goods Orders',        '2026-04-24', 1.2,   '%', 'Census',        'medium', 'MoM'),
+  ('PHSI',           'Pending Home Sales Index',    '2026-04-28', 1.5,   '%', 'NAR',           'low',   'MoM'),
+  ('GDP',            'GDP Advance Estimate',        '2026-04-29', 2.3,   '%', 'BEA',           'high',   'QoQ'),
+  ('FEDFUNDS',       'Fed Interest Rate Decision',  '2026-04-29', 4.50,  '%', 'Federal Reserve','high',  'Fed'),
+  ('ECIWAG',         'Employment Cost Index',       '2026-04-30', 1.0,   '%', 'BLS',           'medium', 'QoQ')
+ON CONFLICT (series_id, release_date) DO UPDATE SET
   estimate     = EXCLUDED.estimate,
-  release_date = EXCLUDED.release_date,
+  release_name = EXCLUDED.release_name,
   impact       = EXCLUDED.impact,
+  frequency    = EXCLUDED.frequency,
   updated_at   = now();
 
 -- ─── 12. SEED FOMC EVENTS ─────────────────────────────────────────────────
